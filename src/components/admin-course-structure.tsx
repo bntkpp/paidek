@@ -295,6 +295,7 @@ export function AdminCourseStructure({ courses }: AdminCourseStructureProps) {
   const [openCourses, setOpenCourses] = useState<Set<string>>(new Set())
   const [openModules, setOpenModules] = useState<Set<string>>(new Set())
   const [draggedLesson, setDraggedLesson] = useState<{ lessonId: string; moduleId: string; currentIndex: number } | null>(null)
+  const [draggedModule, setDraggedModule] = useState<{ moduleId: string; courseId: string; currentIndex: number } | null>(null)
   const { toast } = useToast()
   const router = useRouter()
   const supabase = createClient()
@@ -331,6 +332,33 @@ export function AdminCourseStructure({ courses }: AdminCourseStructureProps) {
     setOpenModules(new Set())
   }
 
+  // Función optimizada para reordenar elementos por lotes
+  const reorderItems = async (
+    table: 'courses' | 'modules' | 'lessons',
+    items: Array<{ id: string; order_index: number }>,
+    successMessage: string
+  ) => {
+    try {
+      // Actualizar todos los elementos en paralelo
+      const updates = items.map(item => 
+        supabase
+          .from(table)
+          .update({ order_index: item.order_index })
+          .eq('id', item.id)
+      )
+      
+      await Promise.all(updates)
+      
+      toast({ description: successMessage })
+      router.refresh()
+    } catch (error) {
+      toast({ 
+        variant: "destructive", 
+        description: `Error al reordenar ${table === 'courses' ? 'cursos' : table === 'modules' ? 'módulos' : 'lecciones'}` 
+      })
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -348,8 +376,17 @@ export function AdminCourseStructure({ courses }: AdminCourseStructureProps) {
       </CardHeader>
       <CardContent className="p-3 sm:p-6">
         <div className="space-y-3">
-          {courses.map((course) => (
-            <div key={course.id} className="border rounded-lg">
+          {courses.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <p className="text-lg font-medium mb-2">No hay cursos disponibles</p>
+              <p className="text-sm">Los cursos aparecerán aquí cuando se creen desde la sección de Cursos</p>
+            </div>
+          ) : (
+            courses.map((course) => (
+                <div 
+                  key={course.id} 
+                  className="border rounded-lg"
+                >
               {/* Curso */}
               <div className="bg-muted/30">
                 <div
@@ -388,8 +425,63 @@ export function AdminCourseStructure({ courses }: AdminCourseStructureProps) {
                       No hay módulos en este curso
                     </div>
                   ) : (
-                    course.modules.map((module) => (
-                      <div key={module.id} className="border rounded-md bg-background">
+                    course.modules
+                      .sort((a, b) => a.order_index - b.order_index)
+                      .map((module, moduleIndex, sortedModules) => {
+                        const isDraggingModule = draggedModule?.moduleId === module.id
+                        const isDragOverModule = draggedModule && draggedModule.courseId === course.id && draggedModule.moduleId !== module.id
+
+                        const handleModuleDragStart = (e: React.DragEvent) => {
+                          e.dataTransfer.effectAllowed = 'move'
+                          e.stopPropagation()
+                          setDraggedModule({ moduleId: module.id, courseId: course.id, currentIndex: moduleIndex })
+                        }
+
+                        const handleModuleDragEnd = () => {
+                          setDraggedModule(null)
+                        }
+
+                        const handleModuleDragOver = (e: React.DragEvent) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          e.dataTransfer.dropEffect = 'move'
+                        }
+
+                        const handleModuleDrop = async (e: React.DragEvent) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+
+                          if (!draggedModule || draggedModule.courseId !== course.id || draggedModule.moduleId === module.id) {
+                            setDraggedModule(null)
+                            return
+                          }
+
+                          const draggedModuleData = sortedModules[draggedModule.currentIndex]
+                          
+                          // Intercambiar índices
+                          const tempOrder = module.order_index
+                          await reorderItems('modules', [
+                            { id: draggedModuleData.id, order_index: tempOrder },
+                            { id: module.id, order_index: draggedModuleData.order_index }
+                          ], 'Módulo reordenado correctamente')
+
+                          setDraggedModule(null)
+                        }
+
+                        return (
+                          <div 
+                            key={module.id} 
+                            className={`border rounded-md bg-background transition-all ${
+                              isDraggingModule ? 'opacity-50 scale-95' : ''
+                            } ${
+                              isDragOverModule ? 'border-2 border-dashed border-primary' : ''
+                            }`}
+                            draggable
+                            onDragStart={handleModuleDragStart}
+                            onDragEnd={handleModuleDragEnd}
+                            onDragOver={handleModuleDragOver}
+                            onDrop={handleModuleDrop}
+                          >
                         {/* Módulo */}
                         <div className="bg-muted/20">
                           <div
@@ -405,7 +497,7 @@ export function AdminCourseStructure({ courses }: AdminCourseStructureProps) {
                               ) : (
                                 <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />
                               )}
-                              <GripVertical className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground hidden sm:block flex-shrink-0" />
+                              <GripVertical className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground opacity-40 hover:opacity-100 transition-opacity flex-shrink-0 cursor-grab active:cursor-grabbing" />
                               <div className="text-left flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span className="font-medium text-xs sm:text-sm truncate">{module.title}</span>
@@ -521,13 +613,15 @@ export function AdminCourseStructure({ courses }: AdminCourseStructureProps) {
                             )}
                           </div>
                         )}
-                      </div>
-                    ))
+                          </div>
+                        )
+                      })
                   )}
                 </div>
               )}
-            </div>
-          ))}
+                </div>
+              ))
+          )}
         </div>
       </CardContent>
     </Card>
