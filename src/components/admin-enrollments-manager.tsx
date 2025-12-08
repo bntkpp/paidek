@@ -87,7 +87,7 @@ export function AdminEnrollmentsManager({
   const handleEnrollmentCreated = (enrollment: EnrollmentWithDetails) => {
     // Verificar si ya existe (en caso de renovación)
     const existingIndex = enrollments.findIndex((e) => e.id === enrollment.id)
-    
+
     if (existingIndex !== -1) {
       // Si existe, actualizar
       setEnrollments((prev) => prev.map((e) => (e.id === enrollment.id ? enrollment : e)))
@@ -201,9 +201,9 @@ export function AdminEnrollmentsManager({
                   enrollment.expires_at && new Date(enrollment.expires_at) < new Date()
                 const daysUntilExpiry = enrollment.expires_at
                   ? Math.ceil(
-                      (new Date(enrollment.expires_at).getTime() - new Date().getTime()) /
-                        (1000 * 60 * 60 * 24)
-                    )
+                    (new Date(enrollment.expires_at).getTime() - new Date().getTime()) /
+                    (1000 * 60 * 60 * 24)
+                  )
                   : null
 
                 return (
@@ -234,13 +234,12 @@ export function AdminEnrollmentsManager({
                           </div>
                           {daysUntilExpiry !== null && (
                             <div
-                              className={`text-xs ${
-                                isExpired
+                              className={`text-xs ${isExpired
                                   ? "text-red-600"
                                   : daysUntilExpiry <= 7
-                                  ? "text-orange-600"
-                                  : "text-muted-foreground"
-                              }`}
+                                    ? "text-orange-600"
+                                    : "text-muted-foreground"
+                                }`}
                             >
                               {isExpired
                                 ? "Expirado"
@@ -351,7 +350,7 @@ function CreateEnrollmentDialog({
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    
+
     if (!selectedUser || !selectedCourse) {
       toast({
         variant: "destructive",
@@ -403,8 +402,8 @@ function CreateEnrollmentDialog({
       onCreated(enrollment)
       toast({
         title: "Inscripción creada",
-        description: planType === "test_minutes" 
-          ? `Inscripción de prueba creada (expira en ${formData.get("test_minutes")} minutos)` 
+        description: planType === "test_minutes"
+          ? `Inscripción de prueba creada (expira en ${formData.get("test_minutes")} minutos)`
           : "La inscripción se creó correctamente.",
       })
       setIsOpen(false)
