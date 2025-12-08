@@ -10,17 +10,18 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { useEffect } from "react"
+import { createClient } from "@/lib/supabase/client"
 
 // Function to convert YouTube URLs to embed format
 function convertToYouTubeEmbed(url: string): string {
   if (!url) return ""
-  
+
   // Already in embed format
   if (url.includes("/embed/")) return url
-  
+
   // Extract video ID from various YouTube URL formats
   let videoId = ""
-  
+
   // youtu.be/VIDEO_ID
   if (url.includes("youtu.be/")) {
     videoId = url.split("youtu.be/")[1]?.split("?")[0]
@@ -34,12 +35,12 @@ function convertToYouTubeEmbed(url: string): string {
   else if (url.includes("youtube.com/v/")) {
     videoId = url.split("/v/")[1]?.split("?")[0]
   }
-  
+
   // If we found a video ID, return embed URL
   if (videoId) {
     return `https://www.youtube.com/embed/${videoId}`
   }
-  
+
   // Return original URL if not a YouTube link
   return url
 }
@@ -68,8 +69,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Pencil, Trash2, Plus, DollarSign, Clock, BookOpen, Video, Settings } from "lucide-react"
+import { Pencil, Trash2, Plus, DollarSign, Clock, BookOpen, Video, Settings, Package } from "lucide-react"
 import { AdminSubscriptionPlansManager } from "@/components/admin-subscription-plans-manager"
+import { AdminCourseAddons } from "@/components/admin-course-addons"
 
 interface AdminCoursesManagerProps {
   initialCourses: any[]
@@ -109,9 +111,9 @@ export function AdminCoursesManager({ initialCourses }: AdminCoursesManagerProps
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {courses.map((course) => (
-          <CourseCard 
-            key={course.id} 
-            course={course} 
+          <CourseCard
+            key={course.id}
+            course={course}
             onUpdated={handleCourseUpdated}
             onDeleted={handleCourseDeleted}
           />
@@ -131,11 +133,11 @@ export function AdminCoursesManager({ initialCourses }: AdminCoursesManagerProps
 }
 
 // ==================== COURSE CARD ====================
-function CourseCard({ 
-  course, 
-  onUpdated, 
-  onDeleted 
-}: { 
+function CourseCard({
+  course,
+  onUpdated,
+  onDeleted
+}: {
   course: any
   onUpdated: (course: any) => void
   onDeleted: (courseId: string) => void
@@ -156,7 +158,7 @@ function CourseCard({
     try {
       const { createClient } = await import("@/lib/supabase/client")
       const supabase = createClient()
-      
+
       const { data, error } = await supabase
         .from("subscription_plans")
         .select("*")
@@ -193,13 +195,18 @@ function CourseCard({
       <CardContent>
         <div className="space-y-3">
           {course.payment_type === "subscription" && (
-            <ManageSubscriptionPlansDialog 
-              courseId={course.id} 
+            <ManageSubscriptionPlansDialog
+              courseId={course.id}
               courseName={course.title}
               key={`plans-${course.id}-${plans.length}`}
             />
           )}
-          
+
+          <ManageAddonsDialog
+            courseId={course.id}
+            courseTitle={course.title}
+          />
+
           <div className="space-y-2 pt-2 border-t">
             {course.payment_type === "one_time" && course.one_time_price && (
               <div className="flex items-center gap-2 text-sm">
@@ -207,7 +214,7 @@ function CourseCard({
                 <span>Pago único: ${course.one_time_price?.toLocaleString("es-CL")}</span>
               </div>
             )}
-            
+
             {course.payment_type === "subscription" && !isLoadingPlans && (
               <>
                 {plans.length === 0 ? (
@@ -226,7 +233,7 @@ function CourseCard({
                 )}
               </>
             )}
-            
+
             {course.duration_hours && (
               <div className="flex items-center gap-2 text-sm">
                 <Clock className="h-4 w-4 text-muted-foreground" />
@@ -245,11 +252,10 @@ function CourseCard({
       <CardFooter>
         <div className="flex items-center justify-between w-full">
           <span
-            className={`text-xs px-2 py-1 rounded-full ${
-              course.published
+            className={`text-xs px-2 py-1 rounded-full ${course.published
                 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                 : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
-            }`}
+              }`}
           >
             {course.published ? "Publicado" : "Borrador"}
           </span>
@@ -267,7 +273,29 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
   const [isOpen, setIsOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [paymentType, setPaymentType] = useState<"one_time" | "subscription">("subscription")
+  const [hasQuestionsPack, setHasQuestionsPack] = useState(false)
+  const [questionPackCourse, setQuestionPackCourse] = useState<string>("")
+  const [questionPackPrice, setQuestionPackPrice] = useState<string>("")
+  const [availableCourses, setAvailableCourses] = useState<any[]>([])
   const { toast } = useToast()
+  const supabase = createClient()
+
+  useEffect(() => {
+    if (isOpen) {
+      loadAvailableCourses()
+    }
+  }, [isOpen])
+
+  const loadAvailableCourses = async () => {
+    const { data } = await supabase
+      .from("courses")
+      .select("id, title")
+      .order("title", { ascending: true })
+    
+    if (data) {
+      setAvailableCourses(data)
+    }
+  }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -289,18 +317,33 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
       duration_hours: parseInt(formData.get("duration_hours") as string) || null,
       level: formData.get("level") as string,
       published: formData.get("published") === "on",
-      has_questions_pack: formData.get("has_questions_pack") === "on",
-      questions_pack_price: formData.get("has_questions_pack") === "on" ? parseFloat(formData.get("questions_pack_price") as string) || null : null,
     }
 
     try {
       const course = await createCourse(payload)
+      
+      // Si se seleccionó un pack de preguntas, crearlo como addon
+      if (hasQuestionsPack && questionPackCourse && questionPackPrice) {
+        const price = parseFloat(questionPackPrice)
+        if (!isNaN(price)) {
+          await supabase.from("course_addons").insert({
+            course_id: course.id,
+            addon_course_id: questionPackCourse,
+            price: price,
+            order_index: 0
+          })
+        }
+      }
+      
       onCreated(course)
       toast({
         title: "Curso creado",
         description: "El curso se creó correctamente.",
       })
       setIsOpen(false)
+      setHasQuestionsPack(false)
+      setQuestionPackCourse("")
+      setQuestionPackPrice("")
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -320,7 +363,7 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
           Crear Curso
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Crear Nuevo Curso</DialogTitle>
           <DialogDescription>Completa los datos del nuevo curso</DialogDescription>
@@ -422,23 +465,54 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
 
           <div className="border-t pt-4 space-y-4">
             <div className="flex items-center space-x-2">
-              <Switch id="has_questions_pack" name="has_questions_pack" />
+              <Switch 
+                id="has_questions_pack" 
+                checked={hasQuestionsPack}
+                onCheckedChange={setHasQuestionsPack}
+              />
               <Label htmlFor="has_questions_pack">Ofrecer banco de preguntas adicional</Label>
             </div>
 
-            <div className="space-y-2 ml-8">
-              <Label htmlFor="questions_pack_price">Precio del Banco de Preguntas (CLP)</Label>
-              <Input
-                id="questions_pack_price"
-                name="questions_pack_price"
-                type="number"
-                step="1000"
-                placeholder="25000"
-              />
-              <p className="text-xs text-muted-foreground">
-                Este precio se agregará al checkout como una opción adicional
-              </p>
-            </div>
+            {hasQuestionsPack && (
+              <div className="space-y-4 ml-8">
+                <div className="space-y-2">
+                  <Label htmlFor="question_pack_course">Seleccionar Pack de Preguntas</Label>
+                  <Select value={questionPackCourse} onValueChange={setQuestionPackCourse}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecciona un curso..." />
+                    </SelectTrigger>
+                    <SelectContent className="max-w-[90vw] sm:max-w-[700px]">
+                      <div className="max-h-[300px] overflow-y-auto">
+                        {availableCourses.map(course => (
+                          <SelectItem key={course.id} value={course.id} className="py-3">
+                            <div className="max-w-full">
+                              <p className="text-sm leading-tight break-words whitespace-normal">
+                                {course.title}
+                              </p>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </div>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="question_pack_price">Precio del Banco de Preguntas (CLP)</Label>
+                  <Input
+                    id="question_pack_price"
+                    type="number"
+                    step="1000"
+                    placeholder="25000"
+                    value={questionPackPrice}
+                    onChange={(e) => setQuestionPackPrice(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Este precio se agregará al checkout como una opción adicional
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -466,7 +540,49 @@ function EditCourseDialog({
   const [isOpen, setIsOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [paymentType, setPaymentType] = useState<"one_time" | "subscription">(course.payment_type || "subscription")
+  const [hasQuestionsPack, setHasQuestionsPack] = useState(false)
+  const [questionPackCourse, setQuestionPackCourse] = useState<string>("")
+  const [questionPackPrice, setQuestionPackPrice] = useState<string>("")
+  const [availableCourses, setAvailableCourses] = useState<any[]>([])
+  const [existingAddonId, setExistingAddonId] = useState<string | null>(null)
   const { toast } = useToast()
+  const supabase = createClient()
+
+  useEffect(() => {
+    if (isOpen) {
+      loadAvailableCourses()
+      loadExistingAddon()
+    }
+  }, [isOpen])
+
+  const loadAvailableCourses = async () => {
+    const { data } = await supabase
+      .from("courses")
+      .select("id, title")
+      .neq("id", course.id)
+      .order("title", { ascending: true })
+    
+    if (data) {
+      setAvailableCourses(data)
+    }
+  }
+
+  const loadExistingAddon = async () => {
+    const { data } = await supabase
+      .from("course_addons")
+      .select("id, addon_course_id, price")
+      .eq("course_id", course.id)
+      .order("order_index", { ascending: true })
+      .limit(1)
+      .maybeSingle()
+    
+    if (data) {
+      setHasQuestionsPack(true)
+      setQuestionPackCourse(data.addon_course_id)
+      setQuestionPackPrice(data.price?.toString() || "")
+      setExistingAddonId(data.id)
+    }
+  }
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -488,12 +604,36 @@ function EditCourseDialog({
       duration_hours: parseInt(formData.get("duration_hours") as string) || null,
       level: formData.get("level") as string,
       published: formData.get("published") === "on",
-      has_questions_pack: formData.get("has_questions_pack") === "on",
-      questions_pack_price: formData.get("has_questions_pack") === "on" ? parseFloat(formData.get("questions_pack_price") as string) || null : null,
     }
 
     try {
       const updatedCourse = await updateCourse(course.id, payload)
+      
+      // Gestionar el addon del pack de preguntas
+      if (hasQuestionsPack && questionPackCourse && questionPackPrice) {
+        const price = parseFloat(questionPackPrice)
+        if (!isNaN(price)) {
+          if (existingAddonId) {
+            // Actualizar addon existente
+            await supabase.from("course_addons").update({
+              addon_course_id: questionPackCourse,
+              price: price
+            }).eq("id", existingAddonId)
+          } else {
+            // Crear nuevo addon
+            await supabase.from("course_addons").insert({
+              course_id: course.id,
+              addon_course_id: questionPackCourse,
+              price: price,
+              order_index: 0
+            })
+          }
+        }
+      } else if (!hasQuestionsPack && existingAddonId) {
+        // Eliminar addon si se desactivó
+        await supabase.from("course_addons").delete().eq("id", existingAddonId)
+      }
+      
       onUpdated(updatedCourse)
       toast({
         title: "Curso actualizado",
@@ -518,7 +658,7 @@ function EditCourseDialog({
           <Pencil className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar Curso</DialogTitle>
           <DialogDescription>Modifica los datos del curso</DialogDescription>
@@ -576,8 +716,8 @@ function EditCourseDialog({
 
           <div className="space-y-2">
             <Label htmlFor="edit-payment_type">Tipo de Pago</Label>
-            <Select 
-              name="payment_type" 
+            <Select
+              name="payment_type"
               value={paymentType}
               onValueChange={(value) => setPaymentType(value as "one_time" | "subscription")}
             >
@@ -649,24 +789,54 @@ function EditCourseDialog({
 
           <div className="border-t pt-4 space-y-4">
             <div className="flex items-center space-x-2">
-              <Switch id="edit-has_questions_pack" name="has_questions_pack" defaultChecked={course.has_questions_pack || false} />
+              <Switch 
+                id="edit-has_questions_pack" 
+                checked={hasQuestionsPack}
+                onCheckedChange={setHasQuestionsPack}
+              />
               <Label htmlFor="edit-has_questions_pack">Ofrecer banco de preguntas adicional</Label>
             </div>
 
-            <div className="space-y-2 ml-8">
-              <Label htmlFor="edit-questions_pack_price">Precio del Banco de Preguntas (CLP)</Label>
-              <Input
-                id="edit-questions_pack_price"
-                name="questions_pack_price"
-                type="number"
-                step="1000"
-                placeholder="25000"
-                defaultValue={course.questions_pack_price || ""}
-              />
-              <p className="text-xs text-muted-foreground">
-                Este precio se agregará al checkout como una opción adicional
-              </p>
-            </div>
+            {hasQuestionsPack && (
+              <div className="space-y-4 ml-8">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-question_pack_course">Seleccionar Pack de Preguntas</Label>
+                  <Select value={questionPackCourse} onValueChange={setQuestionPackCourse}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecciona un curso..." />
+                    </SelectTrigger>
+                    <SelectContent className="max-w-[90vw] sm:max-w-[700px]">
+                      <div className="max-h-[300px] overflow-y-auto">
+                        {availableCourses.map(c => (
+                          <SelectItem key={c.id} value={c.id} className="py-3">
+                            <div className="max-w-full">
+                              <p className="text-sm leading-tight break-words whitespace-normal">
+                                {c.title}
+                              </p>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </div>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-question_pack_price">Precio del Banco de Preguntas (CLP)</Label>
+                  <Input
+                    id="edit-question_pack_price"
+                    type="number"
+                    step="1000"
+                    placeholder="25000"
+                    value={questionPackPrice}
+                    onChange={(e) => setQuestionPackPrice(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Este precio se agregará al checkout como una opción adicional
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -700,15 +870,15 @@ function DeleteCourseDialog({
 
     try {
       await deleteCourse(course.id)
-      
+
       toast({
         title: "Curso eliminado",
         description: `Se eliminó "${course.title}" correctamente.`,
       })
-      
+
       setIsOpen(false)
       onDeleted(course.id)
-      
+
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -764,7 +934,7 @@ function ManageSubscriptionPlansDialog({
     try {
       const { createClient } = await import("@/lib/supabase/client")
       const supabase = createClient()
-      
+
       const { data, error } = await supabase
         .from("subscription_plans")
         .select("*")
@@ -806,7 +976,7 @@ function ManageSubscriptionPlansDialog({
             {courseName}
           </DialogDescription>
         </DialogHeader>
-        
+
         {isLoading ? (
           <div className="py-8 text-center text-muted-foreground">
             Cargando planes...
@@ -818,6 +988,41 @@ function ManageSubscriptionPlansDialog({
             plans={plans}
           />
         )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ==================== MANAGE ADDONS DIALOG ====================
+function ManageAddonsDialog({
+  courseId,
+  courseTitle
+}: {
+  courseId: string
+  courseTitle: string
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="w-full" size="sm">
+          <Package className="h-4 w-4 mr-2" />
+          Complementos Opcionales
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Complementos/Add-ons</DialogTitle>
+          <DialogDescription>
+            {courseTitle}
+          </DialogDescription>
+        </DialogHeader>
+
+        <AdminCourseAddons
+          courseId={courseId}
+          courseTitle={courseTitle}
+        />
       </DialogContent>
     </Dialog>
   )

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { CourseSidebar } from "@/components/course-sidebar"
 import { LessonPageClient } from "@/components/lesson-page-client"
 import { ChatbotWidget } from "@/components/chatbot-widget"
@@ -21,13 +21,24 @@ interface LessonPageWrapperProps {
 
 export function LessonPageWrapper(props: LessonPageWrapperProps) {
   const [chatOpen, setChatOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   return (
     <div className="relative h-screen overflow-hidden">
       <div className="flex flex-col md:flex-row h-full">
-        <CourseSidebar 
-          courseId={props.courseId} 
-          modules={props.modules} 
+        <CourseSidebar
+          courseId={props.courseId}
+          modules={props.modules}
           progress={props.progressPercentage}
           onOpenChat={() => setChatOpen(true)}
         />
@@ -45,25 +56,22 @@ export function LessonPageWrapper(props: LessonPageWrapperProps) {
           />
         </main>
       </div>
-      
-      {/* Chatbot móvil - Sheet controlado desde el header */}
-      <div className="md:hidden">
-        <ChatbotWidget 
-          courseId={props.courseId} 
+
+      {/* Chatbot - solo renderizar UNA instancia según viewport */}
+      {isMobile ? (
+        <ChatbotWidget
+          courseId={props.courseId}
           courseName={props.courseTitle}
           isOpen={chatOpen}
           onOpenChange={setChatOpen}
           isMobile={true}
         />
-      </div>
-      
-      {/* Chatbot desktop - botón flotante independiente */}
-      <div className="hidden md:block">
-        <ChatbotWidget 
-          courseId={props.courseId} 
+      ) : (
+        <ChatbotWidget
+          courseId={props.courseId}
           courseName={props.courseTitle}
         />
-      </div>
+      )}
     </div>
   )
 }
