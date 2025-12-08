@@ -124,7 +124,9 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         plan_id: planId,
         months: months.toString(),
-        selected_addons: selectedAddons && selectedAddons.length > 0 ? JSON.stringify(selectedAddons) : "[]",
+        addon_course_ids: selectedAddons && selectedAddons.length > 0 
+          ? selectedAddons.map((a: any) => a.courseId).join(',') 
+          : "",
         addons_total: addonsTotal ? addonsTotal.toString() : "0",
       },
     }

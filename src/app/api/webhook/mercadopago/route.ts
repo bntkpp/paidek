@@ -59,15 +59,16 @@ export async function POST(req: Request) {
     const userId = metadata?.user_id;
     const planId = metadata?.plan_id;
     const months = metadata?.months ? parseInt(metadata.months) : 1;
-    const selectedAddonsJson = metadata?.selected_addons || "[]";
+    const addonCourseIds = metadata?.addon_course_ids || "";
     const addonsTotal = metadata?.addons_total ? parseFloat(metadata.addons_total) : 0;
 
-    // Parse selected addons
-    let selectedAddons: any[] = [];
-    try {
-      selectedAddons = JSON.parse(selectedAddonsJson);
-    } catch (e) {
-      console.log("⚠️ Error parsing selected_addons, using empty array");
+    console.log("🔍 Raw metadata addon_course_ids:", addonCourseIds);
+
+    // Parse addon course IDs
+    let addonCourseIdList: string[] = [];
+    if (addonCourseIds && addonCourseIds.trim() !== "") {
+      addonCourseIdList = addonCourseIds.split(',').filter((id: string) => id.trim() !== "");
+      console.log("✅ Parsed addon_course_ids:", addonCourseIdList);
     }
 
     if (!courseId || !userId) {
@@ -75,7 +76,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing metadata" }, { status: 400 });
     }
 
-    console.log("📊 Metadatos:", { courseId, userId, planId, months, selectedAddons, addonsTotal });
+    console.log("📊 Metadatos:", { courseId, userId, planId, months, addonCourseIdList, addonsTotal });
 
     // Verificar si el pago ya fue procesado
     const { data: existing } = await supabaseAdmin
@@ -187,12 +188,43 @@ export async function POST(req: Request) {
       }
 
       // 🎁 Crear enrollments para add-ons seleccionados
-      if (selectedAddons && selectedAddons.length > 0) {
-        console.log(`🎁 Procesando ${selectedAddons.length} add-ons seleccionados...`);
+      console.log("🔍 Verificando add-ons...");
+      console.log("📋 Metadata completo:", metadata);
+      console.log("📋 addon_course_ids raw:", addonCourseIds);
+      console.log("📋 addonCourseIdList:", addonCourseIdList);
+      console.log("📋 addonCourseIdList.length:", addonCourseIdList?.length);
+      console.log("📋 Tipo de addonCourseIdList:", typeof addonCourseIdList);
+      console.log("📋 Es array?:", Array.isArray(addonCourseIdList));
+      
+      if (addonCourseIdList && addonCourseIdList.length > 0) {
+        console.log(`🎁 Procesando ${addonCourseIdList.length} add-ons seleccionados...`);
         
-        for (const addon of selectedAddons) {
+        for (const addonCourseId of addonCourseIdList) {
           try {
-            const addonCourseId = addon.courseId;
+            console.log(`🔍 Valor de addonCourseId:`, addonCourseId);
+            console.log(`🔍 Tipo de addonCourseId:`, typeof addonCourseId);
+            console.log(`🔍 addonCourseId.trim():`, addonCourseId?.trim?.());
+            
+            if (!addonCourseId || addonCourseId.trim() === "") {
+              console.error("❌ Add-on course ID inválido:", addonCourseId);
+              continue;
+            }
+
+            console.log(`📦 Procesando add-on con course ID: ${addonCourseId}`);
+            
+            // Verificar que el curso addon existe
+            const { data: addonCourse, error: addonCourseError } = await supabaseAdmin
+              .from("courses")
+              .select("id, title, is_published")
+              .eq("id", addonCourseId)
+              .single();
+            
+            if (addonCourseError || !addonCourse) {
+              console.error(`❌ Curso addon no encontrado con ID "${addonCourseId}":`, addonCourseError);
+              continue;
+            }
+            
+            console.log(`✅ Curso addon encontrado: "${addonCourse.title}" (publicado: ${addonCourse.is_published})`);
             
             // Calcular fecha de expiración para el add-on (misma que el curso principal)
             const addonExpiresAt = new Date();
@@ -223,27 +255,44 @@ export async function POST(req: Request) {
                 })
                 .eq("id", existingAddonEnrollment.id);
 
-              console.log(`✅ Add-on "${addon.title}" extendido hasta: ${newExpiry.toISOString()}`);
+              console.log(`✅ Add-on extendido hasta: ${newExpiry.toISOString()}`);
             } else {
               // Crear nuevo enrollment para el add-on
-              await supabaseAdmin
+              console.log(`🆕 Creando nuevo enrollment para add-on course ID: ${addonCourseId}`);
+              
+              const enrollmentData = {
+                user_id: userId,
+                course_id: addonCourseId,
+                enrolled_at: new Date().toISOString(),
+                expires_at: addonExpiresAt.toISOString(),
+                is_active: true,
+                progress_percentage: 0,
+              };
+              
+              console.log(`📝 Datos del enrollment a insertar:`, enrollmentData);
+              
+              const { data: insertedEnrollment, error: addonEnrollError } = await supabaseAdmin
                 .from("enrollments")
-                .insert({
-                  user_id: userId,
-                  course_id: addonCourseId,
-                  enrolled_at: new Date().toISOString(),
-                  expires_at: addonExpiresAt.toISOString(),
-                  is_active: true,
-                  progress_percentage: 0,
-                });
+                .insert(enrollmentData)
+                .select();
 
-              console.log(`✅ Add-on "${addon.title}" inscrito exitosamente hasta: ${addonExpiresAt.toISOString()}`);
+              if (addonEnrollError) {
+                console.error(`❌ Error insertando enrollment para add-on:`, addonEnrollError);
+                console.error(`❌ Error code:`, addonEnrollError.code);
+                console.error(`❌ Error message:`, addonEnrollError.message);
+                console.error(`❌ Error details:`, addonEnrollError.details);
+              } else {
+                console.log(`✅ Add-on inscrito exitosamente:`, insertedEnrollment);
+              }
             }
           } catch (addonError) {
-            console.error(`❌ Error procesando add-on "${addon.title}":`, addonError);
+            console.error(`❌ Error procesando add-on course ID "${addonCourseId}":`, addonError);
+            console.error("❌ Error stack:", addonError instanceof Error ? addonError.stack : "No stack");
             // Continuar con los demás add-ons aunque falle uno
           }
         }
+      } else {
+        console.log("⚠️ No hay add-ons seleccionados o lista vacía");
       }
 
       // Enviar emails de confirmación
