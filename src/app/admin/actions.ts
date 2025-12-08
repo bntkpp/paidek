@@ -344,6 +344,9 @@ export async function createEnrollment(data: {
     courses: course || { title: "" },
   }
 
+  // Nota: Los add-ons opcionales se manejan en el webhook de Mercado Pago
+  // cuando el usuario los selecciona en el checkout
+
   revalidatePath("/admin/enrollments")
   return enrollmentWithDetails
 }
