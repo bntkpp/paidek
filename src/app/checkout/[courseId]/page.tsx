@@ -60,6 +60,14 @@ export default function CheckoutPage() {
   useEffect(() => {
     async function loadData() {
       const supabase = createClient()
+      
+      // Validar que courseId exista
+      if (!params?.courseId) {
+        console.error("No courseId provided")
+        router.push("/courses")
+        return
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -71,14 +79,15 @@ export default function CheckoutPage() {
 
       setUser(user)
 
-      const { data: courseData } = await supabase
+      const { data: courseData, error: courseError } = await supabase
         .from("courses")
         .select("*")
         .eq("id", params.courseId)
         .eq("published", true)
         .single()
 
-      if (!courseData) {
+      if (courseError || !courseData) {
+        console.error("Course not found:", courseError)
         router.push("/courses")
         return
       }
@@ -138,8 +147,11 @@ export default function CheckoutPage() {
       setIsLoading(false)
     }
 
-    loadData()
-  }, [params.courseId, router])
+    loadData().catch(error => {
+      console.error("Error loading checkout data:", error)
+      setIsLoading(false)
+    })
+  }, [params.courseId, router, selectedPlanId])
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId)
 
