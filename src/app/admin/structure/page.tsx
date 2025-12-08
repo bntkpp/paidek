@@ -23,7 +23,7 @@ export default async function AdminStructurePage() {
   }
 
   // Obtener todos los cursos con sus módulos y lecciones
-  const { data: courses } = await supabase
+  const { data: courses, error } = await supabase
     .from("courses")
     .select(`
       id,
@@ -48,11 +48,17 @@ export default async function AdminStructurePage() {
     `)
     .order("title", { ascending: true })
 
+  // Si hay error, mostrar mensaje
+  if (error) {
+    console.error("Error fetching courses:", error)
+  }
+
   // Ordenar módulos por order_index
-  const coursesWithSortedModules = courses?.map(course => ({
-    ...course,
-    modules: (course.modules || []).sort((a, b) => a.order_index - b.order_index)
-  })) || []
+  const coursesWithSortedModules = (courses || [])
+    .map(course => ({
+      ...course,
+      modules: (course.modules || []).sort((a, b) => a.order_index - b.order_index)
+    }))
 
   return (
     <AdminLayout>
