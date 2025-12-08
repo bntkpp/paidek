@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { createClient as createAdminClient } from "@supabase/supabase-js"
 
 export default async function LearnCoursePage({ params }: { params: Promise<{ courseId: string }> }) {
   const { courseId } = await params
@@ -29,8 +30,18 @@ export default async function LearnCoursePage({ params }: { params: Promise<{ co
     redirect("/dashboard?expired=true")
   }
 
-  // Get first lesson
-  const { data: modules } = await supabase
+  // Use admin client to bypass RLS for enrolled users
+  // This allows access to unpublished courses (like addons) if user has valid enrollment
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: { autoRefreshToken: false, persistSession: false },
+    }
+  )
+
+  // Get first lesson using admin client
+  const { data: modules, error: modulesError } = await supabaseAdmin
     .from("modules")
     .select("*, lessons(*)")
     .eq("course_id", courseId)

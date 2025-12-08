@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { createClient as createAdminClient } from "@supabase/supabase-js"
 import { LessonPageWrapper } from "@/components/lesson-page-wrapper"
 
 export default async function LessonPage({
@@ -34,18 +35,28 @@ export default async function LessonPage({
     redirect("/dashboard?expired=true")
   }
 
-  // Get course details
-  const { data: course } = await supabase.from("courses").select("*").eq("id", courseId).single()
+  // Use admin client to bypass RLS for enrolled users
+  // This allows access to unpublished courses (like addons) if user has valid enrollment
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: { autoRefreshToken: false, persistSession: false },
+    }
+  )
 
-  // Get modules with lessons
-  const { data: modules } = await supabase
+  // Get course details - use admin client for unpublished courses
+  const { data: course } = await supabaseAdmin.from("courses").select("*").eq("id", courseId).single()
+
+  // Get modules with lessons - use admin client
+  const { data: modules } = await supabaseAdmin
     .from("modules")
     .select("*, lessons(*)")
     .eq("course_id", courseId)
     .order("order_index", { ascending: true })
 
-  // Get current lesson
-  const { data: lesson } = await supabase.from("lessons").select("*").eq("id", lessonId).single()
+  // Get current lesson - use admin client
+  const { data: lesson } = await supabaseAdmin.from("lessons").select("*").eq("id", lessonId).single()
 
   if (!lesson) {
     redirect(`/learn/${courseId}`)

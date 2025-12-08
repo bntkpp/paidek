@@ -22,7 +22,8 @@ export default async function DashboardPage() {
   // Get user profile
   const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
 
-  // Get enrolled courses - SIN filtro is_active
+  // Get enrolled courses - Incluye cursos publicados y no publicados
+  // Si tienes enrollment, puedes acceder sin importar el estado de publicación
   const { data: allEnrollments } = await supabase
     .from("enrollments")
     .select("*, courses(*)")
