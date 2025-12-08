@@ -8,22 +8,32 @@ import { Button } from "@/components/ui/button"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle2, CreditCard, TrendingUp, FileQuestion } from "lucide-react"
+import { CheckCircle2, CreditCard, TrendingUp, FileQuestion, Package } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 
-type Plan = "1_month" | "4_months" | "8_months"
-
-const planLabels: Record<Plan, string> = {
-  "1_month": "Plan Mensual",
-  "4_months": "Plan 4 Meses",
-  "8_months": "Plan 8 Meses",
+interface SubscriptionPlan {
+  id: string
+  course_id: string
+  duration_months: number
+  price: number
+  name: string | null
+  description: string | null
+  is_popular: boolean
+  display_order: number
+  is_active: boolean
 }
 
-const planDurations: Record<Plan, number> = {
-  "1_month": 1,
-  "4_months": 4,
-  "8_months": 8,
+interface CourseAddon {
+  id: string
+  addon_course_id: string
+  price: number | null
+  addon_course: {
+    id: string
+    title: string
+    short_description: string | null
+    one_time_price: number | null
+  }
 }
 
 export default function CheckoutPage() {
@@ -31,17 +41,19 @@ export default function CheckoutPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const [course, setCourse] = useState<any>(null)
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([])
+  const [availableAddons, setAvailableAddons] = useState<CourseAddon[]>([])
+  const [selectedAddons, setSelectedAddons] = useState<Set<string>>(new Set())
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
-  const [selectedPlan, setSelectedPlan] = useState<Plan>("4_months")
-  const [includePreguntasAdicionales, setIncludePreguntasAdicionales] = useState(false)
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
 
   useEffect(() => {
-    // Get plan from URL or default to 4 months
-    const planParam = searchParams.get("plan") as Plan
-    if (planParam && ["1_month", "4_months", "8_months"].includes(planParam)) {
-      setSelectedPlan(planParam)
+    // Get plan from URL
+    const planParam = searchParams.get("plan")
+    if (planParam) {
+      setSelectedPlanId(planParam)
     }
   }, [searchParams])
 
@@ -71,18 +83,55 @@ export default function CheckoutPage() {
         return
       }
 
-      // Check if already enrolled
+      // Check if already enrolled and active
       const { data: enrollment } = await supabase
         .from("enrollments")
-        .select("*")
+        .select("*, expires_at")
         .eq("user_id", user.id)
         .eq("course_id", params.courseId)
-        .eq("is_active", true)
         .single()
 
+      // Verificar si la inscripción está activa y no ha expirado
       if (enrollment) {
-        router.push("/dashboard")
-        return
+        const isExpired = enrollment.expires_at && new Date(enrollment.expires_at) < new Date()
+        if (enrollment.is_active && !isExpired) {
+          router.push("/dashboard")
+          return
+        }
+      }
+
+      // Cargar planes de suscripción desde la base de datos
+      const { data: plansData } = await supabase
+        .from("subscription_plans")
+        .select("*")
+        .eq("course_id", params.courseId)
+        .eq("is_active", true)
+        .order("display_order", { ascending: true })
+
+      if (plansData) {
+        setPlans(plansData)
+
+        // Si no hay plan seleccionado, seleccionar el popular o el primero
+        if (!selectedPlanId && plansData.length > 0) {
+          const popularPlan = plansData.find(p => p.is_popular)
+          setSelectedPlanId(popularPlan?.id || plansData[0].id)
+        }
+      }
+
+      // 🎁 Cargar complementos opcionales (add-ons)
+      const { data: addonsData } = await supabase
+        .from("course_addons")
+        .select(`
+          id,
+          addon_course_id,
+          price,
+          addon_course:courses!course_addons_addon_course_id_fkey(id, title, short_description, one_time_price)
+        `)
+        .eq("course_id", params.courseId)
+        .order("order_index", { ascending: true })
+
+      if (addonsData) {
+        setAvailableAddons(addonsData as any)
       }
 
       setCourse(courseData)
@@ -92,52 +141,44 @@ export default function CheckoutPage() {
     loadData()
   }, [params.courseId, router])
 
-  const getPlanPrice = (plan: Plan) => {
-    if (!course) return 0
-    switch (plan) {
-      case "1_month":
-        return course.price_1_month
-      case "4_months":
-        return course.price_4_months
-      case "8_months":
-        return course.price_8_months
-      default:
-        return course.price_1_month
-    }
-  }
+  const selectedPlan = plans.find(p => p.id === selectedPlanId)
 
-  const getOriginalPrice = (plan: Plan) => {
-    switch (plan) {
-      case "1_month":
-        return 60000
-      case "4_months":
-        return 240000
-      case "8_months":
-        return 480000
-      default:
-        return 60000
-    }
-  }
+  const calculateSavings = (plan: SubscriptionPlan) => {
+    // Calcular precio mensual más barato entre todos los planes
+    const cheapestMonthlyRate = Math.min(...plans.map(p => p.price / p.duration_months))
+    const regularTotal = cheapestMonthlyRate * plan.duration_months
+    const savings = regularTotal - plan.price
+    const savingsPercent = Math.round((savings / regularTotal) * 100)
 
-  const calculateSavings = (plan: Plan) => {
-    if (!course) return null
-    
-    const planPrice = getPlanPrice(plan)
-    const originalPrice = getOriginalPrice(plan)
-    const savings = originalPrice - planPrice
-    const savingsPercent = Math.round((savings / originalPrice) * 100)
-    
-    return { savings, savingsPercent }
+    return savings > 0 ? { savings, savingsPercent } : null
   }
 
   const handlePayment = async () => {
+    if (!selectedPlan) return
+
     setIsProcessing(true)
 
     try {
-      const planPrice = getPlanPrice(selectedPlan)
-      const planMonths = planDurations[selectedPlan]
-      const addonPrice = includePreguntasAdicionales && course.has_questions_pack ? (course.questions_pack_price || 0) : 0
-      const totalPrice = planPrice + addonPrice
+      // Calcular precio total de add-ons seleccionados
+      const addonsTotal = Array.from(selectedAddons).reduce((total, addonId) => {
+        const addon = availableAddons.find(a => a.id === addonId)
+        const addonPrice = addon?.price ?? addon?.addon_course?.one_time_price ?? 0
+        return total + addonPrice
+      }, 0)
+
+      const totalPrice = selectedPlan.price + addonsTotal
+
+      // Preparar lista de add-ons seleccionados
+      const selectedAddonsList = Array.from(selectedAddons).map(addonId => {
+        const addon = availableAddons.find(a => a.id === addonId)
+        const addonPrice = addon?.price ?? addon?.addon_course?.one_time_price ?? 0
+        return {
+          addonId: addon?.id,
+          courseId: addon?.addon_course?.id,
+          title: addon?.addon_course?.title,
+          price: addonPrice
+        }
+      })
 
       // Create payment preference
       const response = await fetch("/api/create-preference", {
@@ -148,11 +189,11 @@ export default function CheckoutPage() {
         body: JSON.stringify({
           courseId: params.courseId,
           userId: user.id,
-          plan: selectedPlan,
-          price: planPrice,
-          months: planMonths,
-          includeQuestions: includePreguntasAdicionales && course.has_questions_pack,
-          questionsPrice: addonPrice,
+          planId: selectedPlan.id,
+          price: selectedPlan.price,
+          months: selectedPlan.duration_months,
+          selectedAddons: selectedAddonsList,
+          addonsTotal: addonsTotal,
           totalPrice: totalPrice,
         }),
       })
@@ -185,23 +226,28 @@ export default function CheckoutPage() {
     )
   }
 
-  const currentPrice = getPlanPrice(selectedPlan)
-  const savings = calculateSavings(selectedPlan)
-  const addonPrice = course.has_questions_pack ? (course.questions_pack_price || 0) : 0
-  const totalPrice = currentPrice + (includePreguntasAdicionales ? addonPrice : 0)
+  if (!selectedPlan || plans.length === 0) {
+    return (
+      <main className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-muted-foreground">No hay planes disponibles para este curso.</p>
+        </div>
+        <Footer />
+      </main>
+    )
+  }
 
-  // Obtener planes disponibles (solo los que tienen precio configurado)
-  const availablePlans: Plan[] = []
-  if (course.price_1_month) availablePlans.push("1_month")
-  if (course.price_4_months) availablePlans.push("4_months")
-  if (course.price_8_months) availablePlans.push("8_months")
-
-  // Si el plan seleccionado no está disponible, seleccionar el primero disponible
-  useEffect(() => {
-    if (availablePlans.length > 0 && !availablePlans.includes(selectedPlan)) {
-      setSelectedPlan(availablePlans[0])
-    }
-  }, [availablePlans, selectedPlan])
+  const currentSavings = calculateSavings(selectedPlan)
+  
+  // Calcular total de add-ons seleccionados
+  const addonsTotal = Array.from(selectedAddons).reduce((total, addonId) => {
+    const addon = availableAddons.find(a => a.id === addonId)
+    const addonPrice = addon?.price ?? addon?.addon_course?.one_time_price ?? 0
+    return total + addonPrice
+  }, 0)
+  
+  const totalPrice = selectedPlan.price + addonsTotal
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -241,191 +287,121 @@ export default function CheckoutPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {/* Plan 1 Mes - Solo mostrar si está configurado */}
-                    {course.price_1_month && (
-                      <button
-                        onClick={() => setSelectedPlan("1_month")}
-                        className={`w-full p-4 rounded-lg border-2 transition-all text-left relative ${
-                          selectedPlan === "1_month"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                      >
-                        {calculateSavings("1_month") && (
-                          <Badge className="absolute -top-2 -right-2 bg-green-600 hover:bg-green-700">
-                            Ahorra {calculateSavings("1_month")!.savingsPercent}%
-                          </Badge>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-semibold">Plan Mensual</p>
-                            <p className="text-sm text-muted-foreground">Renovación mensual</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm text-muted-foreground line-through">
-                              ${(60000).toLocaleString("es-CL")}
-                            </p>
-                            <p className="text-2xl font-bold">${course.price_1_month.toLocaleString("es-CL")}</p>
-                            <p className="text-xs text-muted-foreground">/mes</p>
-                          </div>
-                        </div>
-                      </button>
-                    )}
+                    {plans.map((plan) => {
+                      const savings = calculateSavings(plan)
+                      const monthlyRate = plan.price / plan.duration_months
 
-                    {/* Plan 4 Meses - Solo mostrar si está configurado */}
-                    {course.price_4_months && (
-                      <button
-                        onClick={() => setSelectedPlan("4_months")}
-                        className={`w-full p-4 rounded-lg border-2 transition-all text-left relative ${
-                          selectedPlan === "4_months"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                      >
-                        {calculateSavings("4_months") && (
-                          <Badge className="absolute -top-2 -right-2 bg-green-600 hover:bg-green-700">
-                            Ahorra {calculateSavings("4_months")!.savingsPercent}%
-                          </Badge>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-semibold">Plan 4 Meses</p>
-                            <p className="text-sm text-muted-foreground">
-                              ${(course.price_4_months / 4).toLocaleString("es-CL")}/mes
-                            </p>
+                      return (
+                        <button
+                          key={plan.id}
+                          onClick={() => setSelectedPlanId(plan.id)}
+                          className={`w-full p-4 rounded-lg border-2 transition-all text-left relative ${selectedPlanId === plan.id
+                              ? "border-primary bg-primary/5"
+                              : "border-border hover:border-primary/50"
+                            }`}
+                        >
+                          {plan.is_popular && (
+                            <Badge className="absolute -top-2 -left-2 bg-orange-600 hover:bg-orange-700">
+                              Más Popular
+                            </Badge>
+                          )}
+                          {savings && (
+                            <Badge className="absolute -top-2 -right-2 bg-green-600 hover:bg-green-700">
+                              Ahorra {savings.savingsPercent}%
+                            </Badge>
+                          )}
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-semibold">
+                                {plan.name || `Plan ${plan.duration_months} ${plan.duration_months === 1 ? 'Mes' : 'Meses'}`}
+                              </p>
+                              {plan.description ? (
+                                <p className="text-sm text-muted-foreground">{plan.description}</p>
+                              ) : (
+                                <p className="text-sm text-muted-foreground">
+                                  {plan.duration_months === 1 ? 'Renovación mensual' : `$${Math.round(monthlyRate).toLocaleString("es-CL")}/mes`}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <p className="text-2xl font-bold">${plan.price.toLocaleString("es-CL")}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {plan.duration_months === 1 ? '/mes' : 'Pago único'}
+                              </p>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm text-muted-foreground line-through">
-                              ${(240000).toLocaleString("es-CL")}
-                            </p>
-                            <p className="text-2xl font-bold">${course.price_4_months.toLocaleString("es-CL")}</p>
-                            <p className="text-xs text-muted-foreground">Pago único</p>
-                          </div>
-                        </div>
-                      </button>
-                    )}
-
-                    {/* Plan 8 Meses - Solo mostrar si está configurado */}
-                    {course.price_8_months && (
-                      <button
-                        onClick={() => setSelectedPlan("8_months")}
-                        className={`w-full p-4 rounded-lg border-2 transition-all text-left relative ${
-                          selectedPlan === "8_months"
-                            ? "border-primary bg-primary/5"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                      >
-                        {calculateSavings("8_months") && (
-                          <Badge className="absolute -top-2 -right-2 bg-green-600 hover:bg-green-700">
-                            Ahorra {calculateSavings("8_months")!.savingsPercent}%
-                          </Badge>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-semibold">Plan 8 Meses</p>
-                            <p className="text-sm text-muted-foreground">
-                              ${(course.price_8_months / 8).toLocaleString("es-CL")}/mes
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm text-muted-foreground line-through">
-                              ${(480000).toLocaleString("es-CL")}
-                            </p>
-                            <p className="text-2xl font-bold">${course.price_8_months.toLocaleString("es-CL")}</p>
-                            <p className="text-xs text-muted-foreground">Pago único</p>
-                          </div>
-                        </div>
-                      </button>
-                    )}
-
-                    {availablePlans.length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <p>No hay planes de pago configurados para este curso.</p>
-                      </div>
-                    )}
+                        </button>
+                      )
+                    })}
                   </div>
                 </CardContent>
               </Card>
 
-              {course.has_questions_pack && (
-                <Card className="mt-6 relative overflow-hidden border-2 border-primary shadow-lg">
-                  
-                  {/* Fondo decorativo */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-primary/5 to-transparent dark:from-blue-950/30 dark:via-primary/10 dark:to-transparent" />
-                  
-                  <CardContent className="relative pt-6 pb-6">
-                    <div className="flex gap-4">
-                      {/* Icono grande y atractivo */}
-                      <div className="flex-shrink-0">
-                        <div className="w-16 h-16 bg-gradient-to-br from-primary to-blue-600 rounded-2xl flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform">
-                          <FileQuestion className="h-8 w-8 text-white" />
-                        </div>
-                      </div>
+              {/* Complementos opcionales (Add-ons) */}
+              {availableAddons.length > 0 && availableAddons.map(addon => {
+                const addonPrice = addon.price ?? addon.addon_course?.one_time_price ?? 0
+                const isSelected = selectedAddons.has(addon.id)
+                
+                return (
+                  <Card key={addon.id} className={`mt-6 relative overflow-hidden border-2 transition-all ${isSelected ? 'border-purple-500 shadow-lg' : 'border-gray-200 dark:border-gray-800'}`}>
+                    {/* Fondo decorativo */}
+                    <div className={`absolute inset-0 ${isSelected ? 'bg-gradient-to-br from-purple-50 via-purple-500/10 to-transparent dark:from-purple-950/30 dark:via-purple-500/10' : 'bg-gradient-to-br from-gray-50 to-transparent dark:from-gray-900/30'}`} />
 
-                      {/* Contenido principal */}
-                      <div className="flex-1 space-y-3">
-                        <div>
-                          <h3 className="text-xl font-bold text-primary mb-1">
-                            Banco de Preguntas Tipo Prueba
-                          </h3>
-                          <p className="text-sm text-muted-foreground">
-                            Más de 500 preguntas diseñadas por expertos para maximizar tu preparación
-                          </p>
-                        </div>
-
-                        {/* Beneficios destacados */}
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="flex items-center gap-2 bg-white/50 dark:bg-gray-900/50 rounded-lg p-2 border border-primary/10">
-                            <div className="w-1.5 h-1.5 bg-primary rounded-full" />
-                            <span className="text-xs font-medium">Práctica ilimitada</span>
-                          </div>
-                          <div className="flex items-center gap-2 bg-white/50 dark:bg-gray-900/50 rounded-lg p-2 border border-primary/10">
-                            <div className="w-1.5 h-1.5 bg-primary rounded-full" />
-                            <span className="text-xs font-medium">Explicaciones detalladas</span>
-                          </div>
-                          <div className="flex items-center gap-2 bg-white/50 dark:bg-gray-900/50 rounded-lg p-2 border border-primary/10">
-                            <div className="w-1.5 h-1.5 bg-primary rounded-full" />
-                            <span className="text-xs font-medium">Actualizado 2025</span>
+                    <CardContent className="relative pt-6 pb-6">
+                      <div className="flex gap-4">
+                        {/* Icono */}
+                        <div className="flex-shrink-0">
+                          <div className={`w-16 h-16 ${isSelected ? 'bg-gradient-to-br from-purple-600 to-purple-700' : 'bg-gradient-to-br from-gray-600 to-gray-700'} rounded-2xl flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform`}>
+                            <FileQuestion className="h-8 w-8 text-white" />
                           </div>
                         </div>
 
-                        {/* Testimonial mini */}
-                        <div className="bg-white dark:bg-gray-900 rounded-lg p-3 border border-primary/20 shadow-sm">
-                          <p className="text-xs italic text-muted-foreground mb-1">
-                            "El banco de preguntas fue fundamental para aprobar. Las preguntas son muy similares a las del examen real."
-                          </p>
-                          <p className="text-xs font-semibold text-primary">— Matías D.</p>
-                        </div>
-
-                        {/* Call to action */}
-                        <div className="flex items-center justify-between pt-2">
-                          <div className="flex items-center gap-3">
-                            <Checkbox
-                              id="preguntas-adicionales"
-                              checked={includePreguntasAdicionales}
-                              onCheckedChange={(checked) => setIncludePreguntasAdicionales(checked as boolean)}
-                              className="data-[state=checked]:bg-primary data-[state=checked]:border-primary w-5 h-5"
-                            />
-                            <Label htmlFor="preguntas-adicionales" className="cursor-pointer">
-                              <span className="text-sm font-semibold text-foreground">
-                                Agregar al carrito
-                              </span>
-                            </Label>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs text-muted-foreground line-through">
-                              ${(addonPrice * 1.4).toLocaleString("es-CL")}
+                        {/* Contenido principal */}
+                        <div className="flex-1 space-y-3">
+                          <div>
+                            <h3 className={`text-xl font-bold mb-1 ${isSelected ? 'text-purple-600' : 'text-foreground'}`}>
+                              {addon.addon_course?.title}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {addon.addon_course?.short_description || 'Complemento adicional para mejorar tu aprendizaje'}
                             </p>
-                            <p className="text-2xl font-bold text-primary">
-                              +${addonPrice.toLocaleString("es-CL")}
-                            </p>
+                          </div>
+
+                          {/* Call to action */}
+                          <div className="flex items-center justify-between pt-2">
+                            <div className="flex items-center gap-3">
+                              <Checkbox
+                                id={`addon-${addon.id}`}
+                                checked={isSelected}
+                                onCheckedChange={(checked) => {
+                                  const newSet = new Set(selectedAddons)
+                                  if (checked) {
+                                    newSet.add(addon.id)
+                                  } else {
+                                    newSet.delete(addon.id)
+                                  }
+                                  setSelectedAddons(newSet)
+                                }}
+                                className="data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600 w-5 h-5"
+                              />
+                              <Label htmlFor={`addon-${addon.id}`} className="cursor-pointer">
+                                <span className="text-sm font-semibold text-foreground">
+                                  {isSelected ? 'Agregado al carrito' : 'Agregar al carrito'}
+                                </span>
+                              </Label>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-2xl font-bold text-purple-600">
+                                +${addonPrice.toLocaleString("es-CL")}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+                    </CardContent>
+                  </Card>
+                )
+              })}
 
               <Card className="mt-6">
                 <CardHeader>
@@ -435,7 +411,7 @@ export default function CheckoutPage() {
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="h-5 w-5 text-accent" />
-                      <span>Acceso completo durante {planDurations[selectedPlan]} {planDurations[selectedPlan] === 1 ? "mes" : "meses"}</span>
+                      <span>Acceso completo durante {selectedPlan.duration_months} {selectedPlan.duration_months === 1 ? "mes" : "meses"}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="h-5 w-5 text-accent" />
@@ -463,47 +439,57 @@ export default function CheckoutPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Plan seleccionado</span>
-                      <span className="font-medium">{planLabels[selectedPlan]}</span>
+                      <span className="font-medium">
+                        {selectedPlan.name || `${selectedPlan.duration_months} ${selectedPlan.duration_months === 1 ? 'Mes' : 'Meses'}`}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Duración</span>
                       <span className="font-medium">
-                        {planDurations[selectedPlan]} {planDurations[selectedPlan] === 1 ? "mes" : "meses"}
+                        {selectedPlan.duration_months} {selectedPlan.duration_months === 1 ? "mes" : "meses"}
                       </span>
                     </div>
-                    {selectedPlan !== "1_month" && (
+                    {selectedPlan.duration_months > 1 && (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Precio mensual equivalente</span>
                         <span className="font-medium">
-                          ${(currentPrice / planDurations[selectedPlan]).toLocaleString("es-CL")}/mes
+                          ${Math.round(selectedPlan.price / selectedPlan.duration_months).toLocaleString("es-CL")}/mes
                         </span>
                       </div>
                     )}
                   </div>
 
-                  {savings && (
+                  {currentSavings && (
                     <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
                       <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
                         <TrendingUp className="h-4 w-4" />
                         <span className="text-sm font-semibold">
-                          Ahorras ${savings.savings.toLocaleString("es-CL")} ({savings.savingsPercent}%)
+                          Ahorras ${Math.round(currentSavings.savings).toLocaleString("es-CL")} ({currentSavings.savingsPercent}%)
                         </span>
                       </div>
                     </div>
                   )}
 
-                  {includePreguntasAdicionales && course.has_questions_pack && (
-                    <div className="border-t border-border pt-4 space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Curso ({planLabels[selectedPlan]})</span>
-                        <span className="font-medium">${currentPrice.toLocaleString("es-CL")}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm bg-primary/10 dark:bg-primary/20 px-3 py-2 rounded-lg border border-primary/20">
-                        <span className="text-primary font-medium"> Banco de Preguntas </span>
-                        <span className="font-bold text-primary">${addonPrice.toLocaleString("es-CL")}</span>
-                      </div>
+                  <div className="border-t border-border pt-4 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Curso ({selectedPlan.name || `${selectedPlan.duration_months} ${selectedPlan.duration_months === 1 ? 'Mes' : 'Meses'}`})
+                      </span>
+                      <span className="font-medium">${selectedPlan.price.toLocaleString("es-CL")}</span>
                     </div>
-                  )}
+
+                    {Array.from(selectedAddons).map(addonId => {
+                      const addon = availableAddons.find(a => a.id === addonId)
+                      if (!addon) return null
+                      const price = addon.price ?? addon.addon_course?.one_time_price ?? 0
+                      return (
+                        <div key={addonId} className="flex items-center justify-between text-sm bg-purple-50 dark:bg-purple-900/20 px-3 py-2 rounded-lg border border-purple-200 dark:border-purple-800">
+                          <span className="text-purple-700 dark:text-purple-300 font-medium">✓ {addon.addon_course?.title}</span>
+                          <span className="font-bold text-purple-700 dark:text-purple-300">${price.toLocaleString("es-CL")}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
 
                   <div className="border-t border-border pt-4">
                     <div className="flex items-center justify-between mb-4">
