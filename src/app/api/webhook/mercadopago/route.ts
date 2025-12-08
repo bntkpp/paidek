@@ -57,17 +57,25 @@ export async function POST(req: Request) {
     const metadata = paymentInfo.metadata;
     const courseId = metadata?.course_id;
     const userId = metadata?.user_id;
-    const planType = metadata?.plan_type;
+    const planId = metadata?.plan_id;
     const months = metadata?.months ? parseInt(metadata.months) : 1;
-    const includeQuestions = metadata?.include_questions === "true";
-    const questionsPrice = metadata?.questions_price ? parseFloat(metadata.questions_price) : 0;
+    const selectedAddonsJson = metadata?.selected_addons || "[]";
+    const addonsTotal = metadata?.addons_total ? parseFloat(metadata.addons_total) : 0;
+
+    // Parse selected addons
+    let selectedAddons: any[] = [];
+    try {
+      selectedAddons = JSON.parse(selectedAddonsJson);
+    } catch (e) {
+      console.log("⚠️ Error parsing selected_addons, using empty array");
+    }
 
     if (!courseId || !userId) {
       console.log("❌ Faltan metadatos:", { courseId, userId, metadata });
       return NextResponse.json({ error: "Missing metadata" }, { status: 400 });
     }
 
-    console.log("📊 Metadatos:", { courseId, userId, planType, months, includeQuestions, questionsPrice });
+    console.log("📊 Metadatos:", { courseId, userId, planId, months, selectedAddons, addonsTotal });
 
     // Verificar si el pago ya fue procesado
     const { data: existing } = await supabaseAdmin
@@ -91,8 +99,6 @@ export async function POST(req: Request) {
       mercadopago_payment_id: String(paymentId),
       payment_method: paymentInfo.payment_method_id || null,
       payment_type: paymentInfo.payment_type_id || null,
-      includes_questions_pack: includeQuestions,
-      questions_pack_price: includeQuestions ? questionsPrice : null,
     });
 
     if (insertError) {
@@ -131,12 +137,12 @@ export async function POST(req: Request) {
 
       if (existingEnrollment) {
         console.log("📝 Inscripción existente encontrada, extendiendo...");
-        
+
         // Calcular nueva fecha de expiración
-        const currentExpiry = existingEnrollment.expires_at 
-          ? new Date(existingEnrollment.expires_at) 
+        const currentExpiry = existingEnrollment.expires_at
+          ? new Date(existingEnrollment.expires_at)
           : new Date();
-        
+
         // Si la fecha actual ya pasó, usar la fecha actual como base
         const baseDate = currentExpiry > new Date() ? currentExpiry : new Date();
         const newExpiry = new Date(baseDate);
@@ -147,7 +153,6 @@ export async function POST(req: Request) {
           .update({
             expires_at: newExpiry.toISOString(),
             is_active: true,
-            plan_type: planType,
           })
           .eq("id", existingEnrollment.id);
 
@@ -158,7 +163,7 @@ export async function POST(req: Request) {
         }
       } else {
         console.log("🆕 Creando nueva inscripción...");
-        
+
         // Calcular fecha de expiración
         const expiresAt = new Date();
         expiresAt.setMonth(expiresAt.getMonth() + months);
@@ -171,7 +176,6 @@ export async function POST(req: Request) {
             enrolled_at: new Date().toISOString(),
             expires_at: expiresAt.toISOString(),
             is_active: true,
-            plan_type: planType,
             progress_percentage: 0,
           });
 
@@ -179,6 +183,66 @@ export async function POST(req: Request) {
           console.error("❌ Error creando inscripción:", enrollError);
         } else {
           console.log("✅ Inscripción creada exitosamente, expira:", expiresAt.toISOString());
+        }
+      }
+
+      // 🎁 Crear enrollments para add-ons seleccionados
+      if (selectedAddons && selectedAddons.length > 0) {
+        console.log(`🎁 Procesando ${selectedAddons.length} add-ons seleccionados...`);
+        
+        for (const addon of selectedAddons) {
+          try {
+            const addonCourseId = addon.courseId;
+            
+            // Calcular fecha de expiración para el add-on (misma que el curso principal)
+            const addonExpiresAt = new Date();
+            addonExpiresAt.setMonth(addonExpiresAt.getMonth() + months);
+
+            // Verificar si ya existe enrollment para este add-on
+            const { data: existingAddonEnrollment } = await supabaseAdmin
+              .from("enrollments")
+              .select("id, expires_at, is_active")
+              .eq("user_id", userId)
+              .eq("course_id", addonCourseId)
+              .maybeSingle();
+
+            if (existingAddonEnrollment) {
+              // Extender enrollment existente
+              const currentExpiry = existingAddonEnrollment.expires_at
+                ? new Date(existingAddonEnrollment.expires_at)
+                : new Date();
+              const baseDate = currentExpiry > new Date() ? currentExpiry : new Date();
+              const newExpiry = new Date(baseDate);
+              newExpiry.setMonth(newExpiry.getMonth() + months);
+
+              await supabaseAdmin
+                .from("enrollments")
+                .update({
+                  expires_at: newExpiry.toISOString(),
+                  is_active: true,
+                })
+                .eq("id", existingAddonEnrollment.id);
+
+              console.log(`✅ Add-on "${addon.title}" extendido hasta: ${newExpiry.toISOString()}`);
+            } else {
+              // Crear nuevo enrollment para el add-on
+              await supabaseAdmin
+                .from("enrollments")
+                .insert({
+                  user_id: userId,
+                  course_id: addonCourseId,
+                  enrolled_at: new Date().toISOString(),
+                  expires_at: addonExpiresAt.toISOString(),
+                  is_active: true,
+                  progress_percentage: 0,
+                });
+
+              console.log(`✅ Add-on "${addon.title}" inscrito exitosamente hasta: ${addonExpiresAt.toISOString()}`);
+            }
+          } catch (addonError) {
+            console.error(`❌ Error procesando add-on "${addon.title}":`, addonError);
+            // Continuar con los demás add-ons aunque falle uno
+          }
         }
       }
 
@@ -190,9 +254,7 @@ export async function POST(req: Request) {
 
         try {
           // Email de confirmación de compra
-          const planLabel = planType === "one_time" 
-            ? "Pago único" 
-            : `Plan ${months} ${months === 1 ? 'mes' : 'meses'}`;
+          const planLabel = `Plan ${months} ${months === 1 ? 'mes' : 'meses'}`;
 
           const purchaseHtml = getPurchaseConfirmationTemplate({
             userName,
@@ -201,7 +263,7 @@ export async function POST(req: Request) {
             courseId,
             amount: paymentInfo.transaction_amount || 0,
             plan: planLabel,
-            includesQuestions: includeQuestions,
+            includesQuestions: false,
             paymentId: String(paymentId),
             purchaseDate: new Date().toISOString(),
           });
@@ -244,11 +306,11 @@ export async function POST(req: Request) {
   } catch (err: any) {
     console.error("❌ Error en webhook:", err);
     console.error("Stack:", err.stack);
-    
+
     // Retornar 200 para que MercadoPago no reintente inmediatamente
     // pero logear el error para debugging
-    return NextResponse.json({ 
-      received: true, 
+    return NextResponse.json({
+      received: true,
       error: err.message,
       warning: "Error procesado pero confirmado para evitar reintentos"
     }, { status: 200 });
