@@ -2,8 +2,15 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { createClient as createAdminClient } from "@supabase/supabase-js"
 
-export default async function LearnCoursePage({ params }: { params: Promise<{ courseId: string }> }) {
+export default async function LearnCoursePage({ 
+  params,
+  searchParams 
+}: { 
+  params: Promise<{ courseId: string }>
+  searchParams: Promise<{ preview?: string }>
+}) {
   const { courseId } = await params
+  const { preview } = await searchParams
   const supabase = await createClient()
 
   const {
@@ -13,21 +20,27 @@ export default async function LearnCoursePage({ params }: { params: Promise<{ co
     redirect("/auth/login")
   }
 
-  // Check if user is enrolled
-  const { data: enrollment } = await supabase
-    .from("enrollments")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("course_id", courseId)
-    .single()
+  // Check if user is admin for preview mode
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+  const isAdminPreview = preview === "true" && profile?.role === "admin"
 
-  if (!enrollment) {
-    redirect("/courses")
-  }
+  // Check if user is enrolled (skip for admin preview)
+  if (!isAdminPreview) {
+    const { data: enrollment } = await supabase
+      .from("enrollments")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("course_id", courseId)
+      .single()
 
-  // Check if enrollment has expired
-  if (enrollment.expires_at && new Date(enrollment.expires_at) < new Date()) {
-    redirect("/dashboard?expired=true")
+    if (!enrollment) {
+      redirect("/courses")
+    }
+
+    // Check if enrollment has expired
+    if (enrollment.expires_at && new Date(enrollment.expires_at) < new Date()) {
+      redirect("/dashboard?expired=true")
+    }
   }
 
   // Use admin client to bypass RLS for enrolled users
@@ -49,7 +62,8 @@ export default async function LearnCoursePage({ params }: { params: Promise<{ co
 
   if (modules && modules.length > 0 && modules[0].lessons && modules[0].lessons.length > 0) {
     const firstLesson = modules[0].lessons.sort((a, b) => a.order_index - b.order_index)[0]
-    redirect(`/learn/${courseId}/${firstLesson.id}`)
+    const previewParam = isAdminPreview ? "?preview=true" : ""
+    redirect(`/learn/${courseId}/${firstLesson.id}${previewParam}`)
   }
 
   redirect("/dashboard")

@@ -5,10 +5,13 @@ import { LessonPageWrapper } from "@/components/lesson-page-wrapper"
 
 export default async function LessonPage({
   params,
+  searchParams
 }: {
   params: Promise<{ courseId: string; lessonId: string }>
+  searchParams: Promise<{ preview?: string }>
 }) {
   const { courseId, lessonId } = await params
+  const { preview } = await searchParams
   const supabase = await createClient()
 
   const {
@@ -18,21 +21,27 @@ export default async function LessonPage({
     redirect("/auth/login")
   }
 
-  // Check if user is enrolled
-  const { data: enrollment } = await supabase
-    .from("enrollments")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("course_id", courseId)
-    .single()
+  // Check if user is admin for preview mode
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
+  const isAdminPreview = preview === "true" && profile?.role === "admin"
 
-  if (!enrollment) {
-    redirect("/courses")
-  }
+  // Check if user is enrolled (skip for admin preview)
+  if (!isAdminPreview) {
+    const { data: enrollment } = await supabase
+      .from("enrollments")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("course_id", courseId)
+      .single()
 
-  // Check if enrollment has expired
-  if (enrollment.expires_at && new Date(enrollment.expires_at) < new Date()) {
-    redirect("/dashboard?expired=true")
+    if (!enrollment) {
+      redirect("/courses")
+    }
+
+    // Check if enrollment has expired
+    if (enrollment.expires_at && new Date(enrollment.expires_at) < new Date()) {
+      redirect("/dashboard?expired=true")
+    }
   }
 
   // Use admin client to bypass RLS for enrolled users
