@@ -32,12 +32,12 @@ export default async function DashboardPage() {
   // Filtrar en el servidor las que están activas Y no expiradas
   const enrollments = allEnrollments?.filter((enrollment) => {
     if (!enrollment.is_active) return false
-    
+
     // Si tiene fecha de expiración, verificar que no haya expirado
     if (enrollment.expires_at) {
       return new Date(enrollment.expires_at) > new Date()
     }
-    
+
     return true
   }) || []
 
@@ -74,9 +74,9 @@ export default async function DashboardPage() {
               <div className="text-2xl font-bold">
                 {enrollments?.length
                   ? Math.round(
-                      enrollments.reduce((acc, e) => acc + (e.progress_percentage || 0), 0) /
-                        enrollments.length
-                    )
+                    enrollments.reduce((acc, e) => acc + (e.progress_percentage || 0), 0) /
+                    enrollments.length
+                  )
                   : 0}
                 %
               </div>
