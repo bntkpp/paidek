@@ -56,7 +56,7 @@ export default async function LessonPage({
 
   // Calculate progress - ordenar todas las lecciones por módulo y luego por order_index
   const allLessons = modules
-    ?.flatMap((module) => 
+    ?.flatMap((module) =>
       module.lessons
         .sort((a: any, b: any) => (a.order_index || 0) - (b.order_index || 0))
         .map((lesson: any) => ({ ...lesson, module_order: module.order_index }))
@@ -68,7 +68,7 @@ export default async function LessonPage({
       }
       return (a.order_index || 0) - (b.order_index || 0)
     }) || []
-    
+
   const completedLessonIds = progressData?.filter((record) => record.completed).map((record) => record.lesson_id) || []
   const progressPercentage = allLessons.length > 0 ? Math.round((completedLessonIds.length / allLessons.length) * 100) : 0
 
@@ -99,7 +99,7 @@ export default async function LessonPage({
   // Find previous and next lessons
   let previousLesson = null
   let nextLesson = null
-  
+
   for (let i = 0; i < allLessons.length; i++) {
     if (allLessons[i].id === lessonId) {
       if (i > 0) {
