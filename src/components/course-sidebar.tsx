@@ -38,12 +38,12 @@ const lessonIcons = {
   quiz: PenTool,
 }
 
-function SidebarContent({ 
-  courseId, 
-  modules, 
+function SidebarContent({
+  courseId,
+  modules,
   progress,
-  onLessonClick 
-}: { 
+  onLessonClick
+}: {
   courseId: string
   modules: Module[]
   progress: number
@@ -51,7 +51,7 @@ function SidebarContent({
 }) {
   const pathname = usePathname()
   const [openModules, setOpenModules] = useState<Set<string>>(() => {
-    const currentModuleId = modules.find(module => 
+    const currentModuleId = modules.find(module =>
       module.lessons.some(lesson => pathname.includes(lesson.id))
     )?.id
     return new Set(currentModuleId ? [currentModuleId] : [modules[0]?.id])
@@ -94,7 +94,7 @@ function SidebarContent({
           {modules.map((module) => {
             const isOpen = openModules.has(module.id)
             const moduleProgress = getModuleProgress(module)
-            
+
             return (
               <div key={module.id} className="space-y-1">
                 <button
@@ -117,7 +117,7 @@ function SidebarContent({
                     )}
                   </div>
                 </button>
-                
+
                 {isOpen && (
                   <div className="space-y-1 pl-2">
                     {module.lessons.map((lesson) => {
@@ -129,13 +129,12 @@ function SidebarContent({
                           key={lesson.id}
                           href={`/learn/${courseId}/${lesson.id}`}
                           onClick={onLessonClick}
-                          className={`flex items-center gap-2 px-3 py-2.5 rounded-md transition-all text-sm border ${
-                            isActive
+                          className={`flex items-center gap-2 px-3 py-2.5 rounded-md transition-all text-sm border ${isActive
                               ? "bg-primary text-primary-foreground border-primary shadow-sm"
                               : lesson.completed
-                              ? "bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30 text-foreground border-green-200 dark:border-green-800"
-                              : "bg-background hover:bg-muted/50 text-muted-foreground hover:text-foreground border-border"
-                          }`}
+                                ? "bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30 text-foreground border-green-200 dark:border-green-800"
+                                : "bg-background hover:bg-muted/50 text-muted-foreground hover:text-foreground border-border"
+                            }`}
                         >
                           {lesson.completed ? (
                             <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-green-600 dark:text-green-400" />
@@ -193,9 +192,9 @@ export function CourseSidebar({ courseId, modules, progress, onOpenChat }: Cours
               </SheetTrigger>
               <SheetContent side="left" className="w-80 p-0">
                 <div className="flex flex-col h-full">
-                  <SidebarContent 
-                    courseId={courseId} 
-                    modules={modules} 
+                  <SidebarContent
+                    courseId={courseId}
+                    modules={modules}
                     progress={progress}
                     onLessonClick={() => setOpen(false)}
                   />
