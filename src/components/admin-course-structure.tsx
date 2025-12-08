@@ -48,7 +48,8 @@ import {
   Link2,
   Heading1,
   Heading2,
-  Heading3
+  Heading3,
+  Eye
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { createClient } from "@/lib/supabase/client"
@@ -411,7 +412,16 @@ export function AdminCourseStructure({ courses }: AdminCourseStructureProps) {
                       </p>
                     </div>
                   </div>
-                  <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
+                  <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0 flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(`/learn/${course.id}?preview=true`, '_blank')}
+                      className="gap-2"
+                    >
+                      <Eye className="h-4 w-4" />
+                      <span className="hidden sm:inline">Vista Previa</span>
+                    </Button>
                     <CreateModuleDialog courseId={course.id} courseTitle={course.title} onCreated={() => router.refresh()} />
                   </div>
                 </div>

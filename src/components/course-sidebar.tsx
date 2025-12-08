@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { CheckCircle2, Circle, PlayCircle, FileText, PenTool, File, ChevronDown, ChevronUp, Menu, BookOpen, MessageCircle } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 
 interface Lesson {
   id: string
@@ -50,6 +50,10 @@ function SidebarContent({
   onLessonClick?: () => void
 }) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const isPreview = searchParams.get('preview') === 'true'
+  const previewParam = isPreview ? '?preview=true' : ''
+  
   const [openModules, setOpenModules] = useState<Set<string>>(() => {
     const currentModuleId = modules.find(module =>
       module.lessons.some(lesson => pathname.includes(lesson.id))
@@ -127,7 +131,7 @@ function SidebarContent({
                       return (
                         <Link
                           key={lesson.id}
-                          href={`/learn/${courseId}/${lesson.id}`}
+                          href={`/learn/${courseId}/${lesson.id}${previewParam}`}
                           onClick={onLessonClick}
                           className={`flex items-center gap-2 px-3 py-2.5 rounded-md transition-all text-sm border ${isActive
                               ? "bg-primary text-primary-foreground border-primary shadow-sm"
