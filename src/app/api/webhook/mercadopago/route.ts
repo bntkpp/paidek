@@ -34,17 +34,25 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    console.log("🔔 Webhook recibido - Topic:", body.topic, "ID:", body.data?.id);
+    console.log("🔔 Webhook completo recibido:", JSON.stringify(body, null, 2));
 
     const { type, data, action } = body;
 
-    const paymentId = data?.id;
+    // MercadoPago puede enviar diferentes tipos de notificaciones
+    let paymentId = data?.id;
+    
+    // Si es una notificación de merchant_order, extraer el payment ID
+    if (type === "merchant_order" || body.topic === "merchant_order") {
+      console.log("📦 Es una merchant_order, ignorando (esperamos payment notification)");
+      return NextResponse.json({ received: true });
+    }
+
     if (!paymentId) {
-      console.log("❌ Sin paymentId");
+      console.log("❌ Sin paymentId en:", body);
       return NextResponse.json({ error: "No payment ID" }, { status: 400 });
     }
 
-    console.log("💳 Procesando pago:", paymentId);
+    console.log("💳 Procesando pago:", paymentId, "Topic:", type || body.topic);
 
     const payment = new Payment(client);
     const paymentInfo = await payment.get({ id: paymentId });
