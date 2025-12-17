@@ -2,6 +2,13 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+  
+  // Permitir webhooks y APIs de pago sin autenticación
+  if (pathname.startsWith('/api/webhook') || pathname.startsWith('/api/create-preference')) {
+    return NextResponse.next()
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   })
@@ -30,7 +37,6 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  const pathname = request.nextUrl.pathname
 
   // Proteger rutas de admin
   if (pathname.startsWith('/admin')) {
@@ -67,6 +73,14 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!api/webhook/mercadopago|api/webhook|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api/webhook (webhooks)
+     * - api/create-preference (payment creation)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!api/webhook|api/create-preference|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

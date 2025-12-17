@@ -32,6 +32,15 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  console.log("🚀 POST request received at webhook endpoint");
+  console.log("📍 Request URL:", req.url);
+  console.log("🔑 Environment check:", {
+    hasAccessToken: !!accessToken,
+    hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+    hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    baseUrl: process.env.NEXT_PUBLIC_BASE_URL
+  });
+  
   try {
     const body = await req.json();
     console.log("🔔 Webhook completo recibido:", JSON.stringify(body, null, 2));
