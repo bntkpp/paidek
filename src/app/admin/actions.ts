@@ -511,12 +511,91 @@ export async function updateUser(userId: string, data: { full_name?: string; rol
 
 export async function deleteUser(userId: string) {
   const supabase = await createClient()
+  
+  // Crear admin client para poder eliminar el usuario de Auth
+  const { createClient: createSupabaseClient } = await import("@supabase/supabase-js")
+  const supabaseAdmin = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  )
 
-  const { error } = await supabase.from("profiles").delete().eq("id", userId)
+  // 1. Eliminar de la tabla profiles
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .delete()
+    .eq("id", userId)
 
-  if (error) {
-    throw new Error(error.message)
+  if (profileError) {
+    throw new Error(`Error al eliminar perfil: ${profileError.message}`)
+  }
+
+  // 2. Eliminar del sistema de autenticación de Supabase
+  const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId)
+
+  if (authError) {
+    console.error("Error deleting user from auth:", authError)
+    // No lanzamos error aquí porque el perfil ya fue eliminado
+    // y queremos que la operación continúe
   }
 
   revalidatePath("/admin/users")
+}
+
+// Función para limpiar usuarios huérfanos (que existen en Auth pero no en profiles)
+export async function cleanOrphanAuthUsers() {
+  const { createClient: createSupabaseClient } = await import("@supabase/supabase-js")
+  const supabaseAdmin = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  )
+
+  // Obtener todos los usuarios de Auth
+  const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers()
+  
+  if (authError) {
+    throw new Error(`Error al obtener usuarios de Auth: ${authError.message}`)
+  }
+
+  // Obtener todos los profiles
+  const { data: profiles, error: profilesError } = await supabaseAdmin
+    .from("profiles")
+    .select("id")
+
+  if (profilesError) {
+    throw new Error(`Error al obtener profiles: ${profilesError.message}`)
+  }
+
+  const profileIds = new Set(profiles?.map(p => p.id) || [])
+  const orphanUsers = authUsers.users.filter(user => !profileIds.has(user.id))
+
+  // Eliminar usuarios huérfanos
+  const results = {
+    total: orphanUsers.length,
+    deleted: 0,
+    errors: [] as string[]
+  }
+
+  for (const user of orphanUsers) {
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(user.id)
+    if (error) {
+      results.errors.push(`${user.email}: ${error.message}`)
+    } else {
+      results.deleted++
+    }
+  }
+
+  revalidatePath("/admin/users")
+  return results
 }
