@@ -85,16 +85,6 @@ export function Footer() {
                   FAQ
                 </Link>
               </li>
-              <li>
-                <Link href="/terms" className="hover:text-primary transition-colors hover:translate-x-1 inline-block duration-200">
-                  Términos
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacy" className="hover:text-primary transition-colors hover:translate-x-1 inline-block duration-200">
-                  Privacidad
-                </Link>
-              </li>
             </ul>
           </motion.div>
 
