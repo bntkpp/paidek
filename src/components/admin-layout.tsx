@@ -30,6 +30,7 @@ const navigation = [
   { name: "Módulos", href: "/admin/modules", icon: FileText },
   { name: "Lecciones", href: "/admin/lessons", icon: FileText },
   { name: "Inscripciones", href: "/admin/enrollments", icon: GraduationCap },
+  { name: "Fichas de Alumnos", href: "/admin/intake-forms", icon: FileText },
   { name: "Pagos", href: "/admin/payments", icon: CreditCard },
   { name: "Reseñas", href: "/admin/reviews", icon: Settings },
 ]
