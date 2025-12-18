@@ -128,7 +128,7 @@ export function getWelcomeEmailTemplate({ userName, userEmail, courseTitle, cour
       </ul>
     </div>
     <div class="footer">
-      <p>¿Necesitas ayuda? Contáctanos en <a href="mailto:soporte@paidek.com">soporte@paidek.com</a></p>
+      <p>¿Necesitas ayuda? Contáctanos en <a href="mailto:hola@institutopaidek.com">hola@institutopaidek.com</a></p>
       <p style="margin-top: 16px;">
         © ${new Date().getFullYear()} Paidek. Todos los derechos reservados.
       </p>
@@ -285,7 +285,6 @@ export function getPurchaseConfirmationTemplate({
 <body>
   <div class="container">
     <div class="header">
-      <div class="checkmark">✅</div>
       <h1>¡Compra Exitosa!</h1>
     </div>
     <div class="content">
@@ -336,7 +335,7 @@ export function getPurchaseConfirmationTemplate({
     <div class="footer">
       <p><strong>Recibo de compra</strong></p>
       <p style="margin-top: 8px;">Este correo sirve como confirmación de tu compra.</p>
-      <p style="margin-top: 16px;">¿Preguntas? Escríbenos a <a href="mailto:soporte@paidek.com">soporte@paidek.com</a></p>
+      <p style="margin-top: 16px;">¿Preguntas? Escríbenos a <a href="mailto:hola@institutopaidek.com">hola@institutopaidek.com</a></p>
       <p style="margin-top: 16px;">
         © ${new Date().getFullYear()} Paidek. Todos los derechos reservados.
       </p>

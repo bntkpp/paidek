@@ -1,3 +1,5 @@
+import { Resend } from 'resend';
+
 interface EmailParams {
   to: string
   subject: string
@@ -5,23 +7,30 @@ interface EmailParams {
 }
 
 export async function sendEmail({ to, subject, html }: EmailParams) {
-  // Esta función se puede integrar con servicios como:
-  // - Resend (recomendado para Next.js)
-  // - SendGrid
-  // - Mailgun
-  // - Amazon SES
-  
-  // Por ahora, solo loguea el email (para desarrollo)
-  console.log("=== EMAIL ===")
-  console.log("To:", to)
-  console.log("Subject:", subject)
-  console.log("HTML:", html)
-  console.log("=============")
-  
-  // TODO: Implementar con servicio real
-  // Ejemplo con Resend:
-  // const resend = new Resend(process.env.RESEND_API_KEY)
-  // await resend.emails.send({ from: 'noreply@paidek.com', to, subject, html })
-  
-  return { success: true }
+  const apiKey = process.env.RESEND_API_KEY;
+
+  if (!apiKey) {
+    console.log("=== EMAIL MOCK (Falta RESEND_API_KEY) ===")
+    console.log("Debug: process.env.RESEND_API_KEY is", typeof process.env.RESEND_API_KEY)
+    console.log("To:", to)
+    console.log("Subject:", subject)
+    console.log("=============")
+    return { success: true, id: 'mock-id' };
+  }
+
+  const resend = new Resend(apiKey);
+
+  try {
+    const data = await resend.emails.send({
+      from: 'Paidek <paidek@institutopaidek.com>',
+      to,
+      subject,
+      html,
+    });
+
+    return { success: true, data };
+  } catch (error) {
+    console.error("Error sending email:", error);
+    return { success: false, error };
+  }
 }
