@@ -17,6 +17,7 @@ interface LessonPageWrapperProps {
   nextLesson: { id: string; title: string } | null
   modules: any[]
   progressPercentage: number
+  intakeForm?: any
 }
 
 export function LessonPageWrapper(props: LessonPageWrapperProps) {
@@ -53,6 +54,7 @@ export function LessonPageWrapper(props: LessonPageWrapperProps) {
             userId={props.userId}
             previousLesson={props.previousLesson}
             nextLesson={props.nextLesson}
+            intakeForm={props.intakeForm}
           />
         </main>
       </div>

@@ -19,6 +19,7 @@ interface LessonPageClientProps {
   userId: string
   previousLesson: { id: string; title: string } | null
   nextLesson: { id: string; title: string } | null
+  intakeForm?: any
 }
 
 export function LessonPageClient({
@@ -31,6 +32,7 @@ export function LessonPageClient({
   userId,
   previousLesson,
   nextLesson,
+  intakeForm,
 }: LessonPageClientProps) {
   const router = useRouter()
   const [isMarking, setIsMarking] = useState(false)
@@ -126,6 +128,7 @@ export function LessonPageClient({
           courseId={courseId}
           userId={userId}
           onReviewSubmitted={() => router.refresh()}
+          intakeForm={intakeForm}
         />
       </div>
     </div>
