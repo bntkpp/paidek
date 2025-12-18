@@ -41,6 +41,19 @@ export default async function LearnCoursePage({
     if (enrollment.expires_at && new Date(enrollment.expires_at) < new Date()) {
       redirect("/dashboard?expired=true")
     }
+
+    // Check if user has completed Module 0 (intake form)
+    const { data: intakeForm } = await supabase
+      .from("student_intake_forms")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("course_id", courseId)
+      .maybeSingle()
+
+    // If intake form not completed, redirect to module 0
+    // if (!intakeForm) {
+    //   redirect(`/learn/${courseId}/modulo-0`)
+    // }
   }
 
   // Use admin client to bypass RLS for enrolled users

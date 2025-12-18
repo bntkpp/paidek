@@ -42,6 +42,41 @@ export default async function LessonPage({
     if (enrollment.expires_at && new Date(enrollment.expires_at) < new Date()) {
       redirect("/dashboard?expired=true")
     }
+
+    // Check if user has completed Module 0 (intake form)
+    const { data: intakeForm } = await supabase
+      .from("student_intake_forms")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("course_id", courseId)
+      .maybeSingle()
+
+    // If intake form not completed, check if we need to redirect
+    if (!intakeForm) {
+      // Find if there is an intake form lesson in this course
+      const { data: courseModules } = await supabase
+        .from("modules")
+        .select("id")
+        .eq("course_id", courseId)
+      
+      if (courseModules && courseModules.length > 0) {
+        const moduleIds = courseModules.map(m => m.id)
+        const { data: intakeLesson } = await supabase
+          .from("lessons")
+          .select("id")
+          .in("module_id", moduleIds)
+          .eq("lesson_type", "intake_form")
+          .maybeSingle()
+          
+        // If there is an intake lesson and we are not currently on it, redirect
+        if (intakeLesson && intakeLesson.id !== lessonId) {
+           redirect(`/learn/${courseId}/${intakeLesson.id}`)
+        }
+      }
+    }
+  } else {
+    // Admin preview mode - no intake form needed
+    var intakeForm = null
   }
 
   // Use admin client to bypass RLS for enrolled users
@@ -145,6 +180,7 @@ export default async function LessonPage({
       nextLesson={nextLesson}
       modules={modulesWithLessons || []}
       progressPercentage={progressPercentage}
+      intakeForm={intakeForm}
     />
   )
 }
