@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { CheckCircle2, FileText, Headphones, PlayCircle } from "lucide-react"
 import { PDFViewerSimple } from "@/components/pdf-viewer-simple"
+import { StudentIntakeForm } from "@/components/student-intake-form"
 
 // Función para convertir texto enriquecido a HTML
 function formatRichText(text: string): string {
@@ -115,6 +116,7 @@ interface LessonContentProps {
   courseId?: string
   userId?: string
   onReviewSubmitted?: () => void
+  intakeForm?: any
 }
 
 const capsuleTypeLabel: Record<LessonCapsule["type"], string> = {
@@ -190,6 +192,9 @@ export function LessonContent({
   nextLesson,
   onNavigatePrevious,
   onNavigateNext,
+  intakeForm,
+  courseId,
+  userId,
 }: LessonContentProps) {
   const capsules = useMemo(() => parseCapsules(lesson), [lesson])
 
@@ -199,6 +204,7 @@ export function LessonContent({
   const isPdfLesson = lesson.lesson_type === 'pdf'
   const isVideoLesson = lesson.lesson_type === 'video'
   const isReadingLesson = lesson.lesson_type === 'reading'
+  const isIntakeForm = lesson.lesson_type === 'intake_form'
   
   // Validar si una URL es un video válido
   const isValidVideoUrl = (url: string | null) => {
@@ -212,6 +218,32 @@ export function LessonContent({
   
   // Función para renderizar solo el contenido apropiado según el tipo de lección
   const renderMainContent = () => {
+    // Si es formulario de ficha de alumno
+    if (isIntakeForm) {
+      if (courseId && userId) {
+        return (
+          <div className="flex-1 w-full overflow-y-auto p-6 bg-muted/20">
+            <div className="max-w-3xl mx-auto">
+              <StudentIntakeForm 
+                courseId={courseId} 
+                userId={userId} 
+                onSuccess={onMarkComplete}
+                existingForm={intakeForm}
+              />
+            </div>
+          </div>
+        )
+      } else {
+        return (
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="text-center text-destructive">
+              <p>Error: Faltan datos del usuario o curso para cargar el formulario.</p>
+            </div>
+          </div>
+        )
+      }
+    }
+
     // Si es lección PDF, mostrar solo PDF
     if (isPdfLesson) {
       const pdfCapsule = capsules.find(c => c.type === "pdf")
@@ -341,6 +373,9 @@ export function LessonContent({
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="text-center text-muted-foreground">
           <p>No hay contenido disponible para esta lección</p>
+          <p className="text-xs mt-2 opacity-50">
+            Type: {lesson.lesson_type} | ID: {lesson.id}
+          </p>
         </div>
       </div>
     )
@@ -426,7 +461,7 @@ export function LessonContent({
                 ← ANTERIOR
               </Button>
               <Button
-                disabled={!nextLesson}
+                disabled={!nextLesson || (isIntakeForm && !isCompleted)}
                 onClick={onNavigateNext}
                 size="sm"
                 className="flex-1"
@@ -486,7 +521,7 @@ export function LessonContent({
             </Button>
 
             <Button
-              disabled={!nextLesson}
+              disabled={!nextLesson || (isIntakeForm && !isCompleted)}
               onClick={onNavigateNext}
               size="lg"
               className="min-w-[140px]"

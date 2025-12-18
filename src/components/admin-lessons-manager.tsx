@@ -66,6 +66,7 @@ const lessonTypeOptions = [
   { value: "reading", label: "Lectura", icon: FileText },
   { value: "pdf", label: "PDF", icon: File },
   { value: "exercise", label: "Ejercicio", icon: Dumbbell },
+  { value: "intake_form", label: "Ficha de Alumno", icon: FileText },
 ]
 
 export function AdminLessonsManager({ initialLessons, modules }: AdminLessonsManagerProps) {
