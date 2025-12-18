@@ -290,6 +290,7 @@ const lessonTypeOptions = [
   { value: "reading", label: "Lectura", icon: FileText },
   { value: "pdf", label: "PDF", icon: File },
   { value: "exercise", label: "Ejercicio", icon: Dumbbell },
+  { value: "intake_form", label: "Ficha de Alumno", icon: FileText },
 ]
 
 export function AdminCourseStructure({ courses }: AdminCourseStructureProps) {
@@ -1067,6 +1068,15 @@ function CreateLessonDialog({ moduleId, moduleTitle, onCreated }: { moduleId: st
               </div>
             )}
 
+            {formData.lesson_type === "intake_form" && (
+              <div className="bg-blue-50 p-3 rounded-md border border-blue-100">
+                <p className="text-sm text-blue-700">
+                  Esta lección mostrará el formulario de "Ficha de Alumno". 
+                  El estudiante deberá completarlo obligatoriamente para continuar.
+                </p>
+              </div>
+            )}
+
             {formData.lesson_type === "pdf" && (
               <div className="space-y-3">
                 <div>
@@ -1345,6 +1355,15 @@ function EditLessonDialog({ lesson, moduleId, onUpdated }: { lesson: Lesson, mod
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   URL embebida de YouTube, Vimeo, etc.
+                </p>
+              </div>
+            )}
+
+            {formData.lesson_type === "intake_form" && (
+              <div className="bg-blue-50 p-3 rounded-md border border-blue-100">
+                <p className="text-sm text-blue-700">
+                  Esta lección mostrará el formulario de "Ficha de Alumno". 
+                  El estudiante deberá completarlo obligatoriamente para continuar.
                 </p>
               </div>
             )}
