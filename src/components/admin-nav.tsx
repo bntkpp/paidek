@@ -14,6 +14,7 @@ import {
   LibraryBig,
   GraduationCap,
   FolderTree,
+  FileText,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/admin/modules", label: "Módulos", icon: Layers3 },
   { href: "/admin/lessons", label: "Lecciones", icon: LibraryBig },
   { href: "/admin/enrollments", label: "Inscripciones", icon: GraduationCap },
+  { href: "/admin/intake-forms", label: "Fichas de Alumnos", icon: FileText },
   { href: "/admin/payments", label: "Pagos", icon: CreditCard },
   { href: "/admin/reviews", label: "Reseñas", icon: Star },
 ]
