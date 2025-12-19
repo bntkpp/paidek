@@ -27,23 +27,13 @@ const supabaseAdmin = createClient(
 
 // Agregar soporte para GET (MercadoPago a veces hace GET para validar)
 export async function GET(req: Request) {
-  console.log("✅ Webhook endpoint disponible");
   return NextResponse.json({ status: "ok" });
 }
 
 export async function POST(req: Request) {
-  console.log("🚀 POST request received at webhook endpoint");
-  console.log("📍 Request URL:", req.url);
-  console.log("🔑 Environment check:", {
-    hasAccessToken: !!accessToken,
-    hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-    hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    baseUrl: process.env.NEXT_PUBLIC_BASE_URL
-  });
   
   try {
     const body = await req.json();
-    console.log("🔔 Webhook completo recibido:", JSON.stringify(body, null, 2));
 
     const { type, data, action } = body;
 
@@ -52,16 +42,12 @@ export async function POST(req: Request) {
     
     // Si es una notificación de merchant_order, extraer el payment ID
     if (type === "merchant_order" || body.topic === "merchant_order") {
-      console.log("📦 Es una merchant_order, ignorando (esperamos payment notification)");
       return NextResponse.json({ received: true });
     }
 
     if (!paymentId) {
-      console.log("❌ Sin paymentId en:", body);
       return NextResponse.json({ error: "No payment ID" }, { status: 400 });
     }
-
-    console.log("💳 Procesando pago:", paymentId, "Topic:", type || body.topic);
 
     const payment = new Payment(client);
     const paymentInfo = await payment.get({ id: paymentId });
@@ -84,11 +70,8 @@ export async function POST(req: Request) {
     }
 
     if (!courseId || !userId) {
-      console.log("❌ Faltan metadatos:", { courseId, userId });
       return NextResponse.json({ error: "Missing metadata" }, { status: 400 });
     }
-
-    console.log("📊 Procesando - Curso:", courseId, "Plan:", planId, "Add-ons:", addonCourseIdList.length);
 
     // Verificar si el pago ya fue procesado
     const { data: existing } = await supabaseAdmin
@@ -98,7 +81,6 @@ export async function POST(req: Request) {
       .single();
 
     if (existing) {
-      console.log("⚠️ Pago ya procesado");
       return NextResponse.json({ received: true });
     }
 
@@ -119,11 +101,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "DB insert error" }, { status: 500 });
     }
 
-    console.log("✅ Pago guardado correctamente");
-
     // Si el pago fue aprobado, crear o actualizar la inscripción
     if (paymentInfo.status === "approved") {
-      console.log("💰 Pago aprobado, creando inscripción...");
 
       // Obtener información del usuario y curso para el email
       const { data: userData } = await supabaseAdmin
@@ -149,7 +128,6 @@ export async function POST(req: Request) {
       const isNewEnrollment = !existingEnrollment;
 
       if (existingEnrollment) {
-        console.log("📝 Inscripción existente encontrada, extendiendo...");
 
         let newExpiryISO: string | null = null;
 
@@ -182,11 +160,8 @@ export async function POST(req: Request) {
 
         if (updateError) {
           console.error("❌ Error actualizando inscripción:", updateError);
-        } else {
-          console.log("✅ Inscripción extendida hasta:", newExpiryISO || "Para siempre");
         }
       } else {
-        console.log("🆕 Creando nueva inscripción...");
 
         // Calcular fecha de expiración
         let expiresAtISO: string | null = null;
@@ -215,14 +190,11 @@ export async function POST(req: Request) {
 
         if (enrollError) {
           console.error("❌ Error creando inscripción:", enrollError);
-        } else {
-          console.log("✅ Inscripción creada exitosamente, expira:", expiresAtISO || "Para siempre");
         }
       }
 
       // 🎁 Crear enrollments para add-ons seleccionados
       if (addonCourseIdList && addonCourseIdList.length > 0) {
-        console.log(`🎁 Procesando ${addonCourseIdList.length} add-ons...`);
         
         for (const addonCourseId of addonCourseIdList) {
           try {
@@ -290,7 +262,6 @@ export async function POST(req: Request) {
                 })
                 .eq("id", existingAddonEnrollment.id);
 
-              console.log(`✅ Add-on extendido: ${addonCourse.title}`);
             } else {
               // Crear nuevo enrollment para el add-on
               const { data: insertedEnrollment, error: addonEnrollError } = await supabaseAdmin
@@ -307,8 +278,6 @@ export async function POST(req: Request) {
 
               if (addonEnrollError) {
                 console.error(`❌ Error creando enrollment:`, addonEnrollError.message);
-              } else {
-                console.log(`✅ Add-on inscrito: ${addonCourse.title}`);
               }
             }
           } catch (addonError) {
@@ -345,8 +314,6 @@ export async function POST(req: Request) {
             html: purchaseHtml,
           });
 
-          console.log("✅ Email de confirmación enviado");
-
           // Email de bienvenida solo si es nueva inscripción
           if (isNewEnrollment) {
             const welcomeHtml = getWelcomeEmailTemplate({
@@ -361,16 +328,12 @@ export async function POST(req: Request) {
               subject: `🎉 Bienvenido a ${courseTitle}`,
               html: welcomeHtml,
             });
-
-            console.log("✅ Email de bienvenida enviado");
           }
         } catch (emailError) {
           console.error("❌ Error enviando emails:", emailError);
           // No fallar el webhook por error de email
         }
       }
-    } else {
-      console.log("⏳ Pago no aprobado aún, estado:", paymentInfo.status);
     }
 
     return NextResponse.json({ received: true, status: paymentInfo.status });
