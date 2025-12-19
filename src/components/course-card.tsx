@@ -20,6 +20,7 @@ interface CourseCardProps {
   one_time_price: number | null
   duration_hours: number | null
   level: string | null
+  type?: string
 }
 
 interface SubscriptionPlan {
@@ -45,12 +46,14 @@ export function CourseCard({
   one_time_price,
   duration_hours,
   level,
+  type = "course",
 }: CourseCardProps) {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([])
   const [isLoadingPlans, setIsLoadingPlans] = useState(true)
   
   // Detectar si es pago único
   const isOneTimePayment = payment_type === "one_time"
+  const isEbook = type === "ebook"
 
   useEffect(() => {
     if (payment_type === "subscription") {
@@ -124,6 +127,11 @@ export function CourseCard({
               {levelLabels[level] || level}
             </Badge>
           )}
+          {isEbook && (
+            <Badge className="absolute top-2 left-2 bg-purple-600 hover:bg-purple-700">
+              Ebook
+            </Badge>
+          )}
         </motion.div>
 
       <CardHeader>
@@ -132,7 +140,12 @@ export function CourseCard({
       </CardHeader>
 
       <CardContent className="flex-1">
-        {duration_hours && (
+        {isEbook ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+            <BookOpen className="h-4 w-4" />
+            <span>Formato PDF Descargable</span>
+          </div>
+        ) : duration_hours && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
             <Clock className="h-4 w-4" />
             <span>{duration_hours} horas de contenido</span>

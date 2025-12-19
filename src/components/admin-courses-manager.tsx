@@ -69,7 +69,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Pencil, Trash2, Plus, DollarSign, Clock, BookOpen, Video, Settings, Package } from "lucide-react"
+import { Pencil, Trash2, Plus, DollarSign, Clock, BookOpen, Video, Settings, Package, Upload, Loader2 } from "lucide-react"
 import { AdminSubscriptionPlansManager } from "@/components/admin-subscription-plans-manager"
 import { AdminCourseAddons } from "@/components/admin-course-addons"
 
@@ -181,7 +181,14 @@ function CourseCard({
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <CardTitle className="line-clamp-1">{course.title}</CardTitle>
+            <div className="flex items-center gap-2 mb-1">
+              {course.type === "ebook" && (
+                <span className="bg-purple-100 text-purple-800 text-xs px-2 py-0.5 rounded-full dark:bg-purple-900 dark:text-purple-200 font-medium">
+                  Ebook
+                </span>
+              )}
+              <CardTitle className="line-clamp-1">{course.title}</CardTitle>
+            </div>
             <CardDescription className="line-clamp-2 mt-1">
               {course.short_description || course.description}
             </CardDescription>
@@ -246,6 +253,12 @@ function CourseCard({
                 <span className="text-green-600">Video añadido</span>
               </div>
             )}
+            {course.type === "ebook" && course.download_url && (
+              <div className="flex items-center gap-2 text-sm">
+                <Package className="h-4 w-4 text-muted-foreground" />
+                <span className="text-blue-600 truncate max-w-[200px]">PDF: {course.download_url}</span>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
@@ -272,11 +285,13 @@ function CourseCard({
 function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void }) {
   const [isOpen, setIsOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
+  const [productType, setProductType] = useState<"course" | "ebook">("course")
   const [paymentType, setPaymentType] = useState<"one_time" | "subscription">("subscription")
   const [hasQuestionsPack, setHasQuestionsPack] = useState(false)
   const [questionPackCourse, setQuestionPackCourse] = useState<string>("")
   const [questionPackPrice, setQuestionPackPrice] = useState<string>("")
   const [availableCourses, setAvailableCourses] = useState<any[]>([])
+  const [pdfFile, setPdfFile] = useState<File | null>(null)
   const { toast } = useToast()
   const supabase = createClient()
 
@@ -285,6 +300,13 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
       loadAvailableCourses()
     }
   }, [isOpen])
+
+  // Reset payment type when switching to ebook
+  useEffect(() => {
+    if (productType === "ebook") {
+      setPaymentType("one_time")
+    }
+  }, [productType])
 
   const loadAvailableCourses = async () => {
     const { data } = await supabase
@@ -303,23 +325,44 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
 
     const formData = new FormData(event.currentTarget)
 
-    const paymentType = formData.get("payment_type") as string
+    const currentPaymentType = productType === "ebook" ? "one_time" : (formData.get("payment_type") as string)
     const videoUrl = formData.get("video_url") as string
-
-    const payload = {
-      title: formData.get("title") as string,
-      description: formData.get("description") as string,
-      short_description: formData.get("short_description") as string,
-      image_url: formData.get("image_url") as string,
-      video_url: convertToYouTubeEmbed(videoUrl),
-      payment_type: paymentType,
-      one_time_price: paymentType === "one_time" ? parseFloat(formData.get("one_time_price") as string) || null : null,
-      duration_hours: parseInt(formData.get("duration_hours") as string) || null,
-      level: formData.get("level") as string,
-      published: formData.get("published") === "on",
-    }
+    let downloadUrl = formData.get("download_url") as string || null
 
     try {
+      // Upload PDF if selected
+      if (productType === "ebook" && pdfFile) {
+        const fileExt = pdfFile.name.split('.').pop()
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+        
+        const { error: uploadError } = await supabase.storage
+          .from('ebooks')
+          .upload(fileName, pdfFile)
+
+        if (uploadError) throw new Error(`Error al subir PDF: ${uploadError.message}`)
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('ebooks')
+          .getPublicUrl(fileName)
+          
+        downloadUrl = publicUrl
+      }
+
+      const payload = {
+        title: formData.get("title") as string,
+        description: formData.get("description") as string,
+        short_description: formData.get("short_description") as string,
+        image_url: formData.get("image_url") as string,
+        video_url: convertToYouTubeEmbed(videoUrl),
+        payment_type: currentPaymentType,
+        one_time_price: currentPaymentType === "one_time" ? parseFloat(formData.get("one_time_price") as string) || null : null,
+        duration_hours: parseInt(formData.get("duration_hours") as string) || null,
+        level: formData.get("level") as string,
+        published: formData.get("published") === "on",
+        type: productType,
+        download_url: downloadUrl,
+      }
+
       const course = await createCourse(payload)
       
       // Si se seleccionó un pack de preguntas, crearlo como addon
@@ -337,13 +380,15 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
       
       onCreated(course)
       toast({
-        title: "Curso creado",
-        description: "El curso se creó correctamente.",
+        title: productType === "ebook" ? "Ebook creado" : "Curso creado",
+        description: "El producto se creó correctamente.",
       })
       setIsOpen(false)
       setHasQuestionsPack(false)
       setQuestionPackCourse("")
       setQuestionPackPrice("")
+      setProductType("course")
+      setPdfFile(null)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -360,15 +405,32 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
       <DialogTrigger asChild>
         <Button>
           <Plus className="mr-2 h-4 w-4" />
-          Crear Curso
+          Crear Producto
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Crear Nuevo Curso</DialogTitle>
-          <DialogDescription>Completa los datos del nuevo curso</DialogDescription>
+          <DialogTitle>Crear Nuevo Producto</DialogTitle>
+          <DialogDescription>Completa los datos del nuevo curso o ebook</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="type">Tipo de Producto</Label>
+            <Select 
+              name="type" 
+              value={productType} 
+              onValueChange={(v: "course" | "ebook") => setProductType(v)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="course">Curso Online</SelectItem>
+                <SelectItem value="ebook">Ebook (Descargable)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="title">Título *</Label>
             <Input id="title" name="title" required />
@@ -389,18 +451,54 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
             <Input id="image_url" name="image_url" type="url" placeholder="https://ejemplo.com/imagen.jpg" />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="video_url">URL del Video (YouTube/Vimeo)</Label>
-            <Input id="video_url" name="video_url" type="url" placeholder="https://www.youtube.com/watch?v=VIDEO_ID o https://youtu.be/VIDEO_ID" />
-            <p className="text-xs text-muted-foreground">
-              Pega cualquier link de YouTube y se convertirá automáticamente al formato correcto
-            </p>
-          </div>
+          {productType === "ebook" && (
+            <div className="space-y-2">
+              <Label htmlFor="download_url">Archivo PDF del Ebook *</Label>
+              <div className="flex gap-2 items-center">
+                <Input 
+                  id="pdf_file" 
+                  type="file" 
+                  accept=".pdf"
+                  onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
+                  className="cursor-pointer"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Sube el archivo PDF. Se generará un enlace de descarga automáticamente.
+              </p>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    O ingresa una URL externa
+                  </span>
+                </div>
+              </div>
+              <Input id="download_url" name="download_url" type="url" placeholder="https://..." />
+            </div>
+          )}
+
+          {productType === "course" && (
+            <div className="space-y-2">
+              <Label htmlFor="video_url">URL del Video (YouTube/Vimeo)</Label>
+              <Input id="video_url" name="video_url" type="url" placeholder="https://www.youtube.com/watch?v=VIDEO_ID o https://youtu.be/VIDEO_ID" />
+              <p className="text-xs text-muted-foreground">
+                Pega cualquier link de YouTube y se convertirá automáticamente al formato correcto
+              </p>
+            </div>
+          )}
 
           <div className="border-t pt-4 space-y-4">
             <div className="space-y-2">
               <Label htmlFor="payment_type">Tipo de Pago</Label>
-              <Select name="payment_type" value={paymentType} onValueChange={(value: "one_time" | "subscription") => setPaymentType(value)}>
+              <Select 
+                name="payment_type" 
+                value={paymentType} 
+                onValueChange={(value: "one_time" | "subscription") => setPaymentType(value)}
+                disabled={productType === "ebook"}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -409,6 +507,11 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
                   <SelectItem value="subscription">Suscripción (múltiples planes)</SelectItem>
                 </SelectContent>
               </Select>
+              {productType === "ebook" && (
+                <p className="text-xs text-muted-foreground">
+                  Los ebooks son siempre de pago único.
+                </p>
+              )}
             </div>
 
             {paymentType === "one_time" ? (
@@ -437,26 +540,28 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="duration_hours">Duración (horas)</Label>
-              <Input id="duration_hours" name="duration_hours" type="number" />
-            </div>
+          {productType === "course" && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="duration_hours">Duración (horas)</Label>
+                <Input id="duration_hours" name="duration_hours" type="number" />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="level">Nivel</Label>
-              <Select name="level" defaultValue="beginner">
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="beginner">Principiante</SelectItem>
-                  <SelectItem value="intermediate">Intermedio</SelectItem>
-                  <SelectItem value="advanced">Avanzado</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <Label htmlFor="level">Nivel</Label>
+                <Select name="level" defaultValue="beginner">
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="beginner">Principiante</SelectItem>
+                    <SelectItem value="intermediate">Intermedio</SelectItem>
+                    <SelectItem value="advanced">Avanzado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex items-center space-x-2">
             <Switch id="published" name="published" />
@@ -539,12 +644,14 @@ function EditCourseDialog({
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [productType, setProductType] = useState<"course" | "ebook">(course.type || "course")
   const [paymentType, setPaymentType] = useState<"one_time" | "subscription">(course.payment_type || "subscription")
   const [hasQuestionsPack, setHasQuestionsPack] = useState(false)
   const [questionPackCourse, setQuestionPackCourse] = useState<string>("")
   const [questionPackPrice, setQuestionPackPrice] = useState<string>("")
   const [availableCourses, setAvailableCourses] = useState<any[]>([])
   const [existingAddonId, setExistingAddonId] = useState<string | null>(null)
+  const [pdfFile, setPdfFile] = useState<File | null>(null)
   const { toast } = useToast()
   const supabase = createClient()
 
@@ -554,6 +661,13 @@ function EditCourseDialog({
       loadExistingAddon()
     }
   }, [isOpen])
+
+  // Reset payment type when switching to ebook
+  useEffect(() => {
+    if (productType === "ebook") {
+      setPaymentType("one_time")
+    }
+  }, [productType])
 
   const loadAvailableCourses = async () => {
     const { data } = await supabase
@@ -590,23 +704,44 @@ function EditCourseDialog({
 
     const formData = new FormData(event.currentTarget)
 
-    const currentPaymentType = formData.get("payment_type") as string
+    const currentPaymentType = productType === "ebook" ? "one_time" : (formData.get("payment_type") as string)
     const videoUrl = formData.get("video_url") as string
-
-    const payload = {
-      title: formData.get("title") as string,
-      description: formData.get("description") as string,
-      short_description: formData.get("short_description") as string,
-      image_url: formData.get("image_url") as string,
-      video_url: convertToYouTubeEmbed(videoUrl),
-      payment_type: currentPaymentType,
-      one_time_price: currentPaymentType === "one_time" ? parseFloat(formData.get("one_time_price") as string) || null : null,
-      duration_hours: parseInt(formData.get("duration_hours") as string) || null,
-      level: formData.get("level") as string,
-      published: formData.get("published") === "on",
-    }
+    let downloadUrl = formData.get("download_url") as string || null
 
     try {
+      // Upload PDF if selected
+      if (productType === "ebook" && pdfFile) {
+        const fileExt = pdfFile.name.split('.').pop()
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+        
+        const { error: uploadError } = await supabase.storage
+          .from('ebooks')
+          .upload(fileName, pdfFile)
+
+        if (uploadError) throw new Error(`Error al subir PDF: ${uploadError.message}`)
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('ebooks')
+          .getPublicUrl(fileName)
+          
+        downloadUrl = publicUrl
+      }
+
+      const payload = {
+        title: formData.get("title") as string,
+        description: formData.get("description") as string,
+        short_description: formData.get("short_description") as string,
+        image_url: formData.get("image_url") as string,
+        video_url: convertToYouTubeEmbed(videoUrl),
+        payment_type: currentPaymentType,
+        one_time_price: currentPaymentType === "one_time" ? parseFloat(formData.get("one_time_price") as string) || null : null,
+        duration_hours: parseInt(formData.get("duration_hours") as string) || null,
+        level: formData.get("level") as string,
+        published: formData.get("published") === "on",
+        type: productType,
+        download_url: downloadUrl,
+      }
+
       const updatedCourse = await updateCourse(course.id, payload)
       
       // Gestionar el addon del pack de preguntas
@@ -636,10 +771,11 @@ function EditCourseDialog({
       
       onUpdated(updatedCourse)
       toast({
-        title: "Curso actualizado",
+        title: "Producto actualizado",
         description: "Los cambios se guardaron correctamente.",
       })
       setIsOpen(false)
+      setPdfFile(null)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -660,10 +796,27 @@ function EditCourseDialog({
       </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Editar Curso</DialogTitle>
-          <DialogDescription>Modifica los datos del curso</DialogDescription>
+          <DialogTitle>Editar Producto</DialogTitle>
+          <DialogDescription>Modifica los datos del curso o ebook</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="edit-type">Tipo de Producto</Label>
+            <Select 
+              name="type" 
+              value={productType} 
+              onValueChange={(v: "course" | "ebook") => setProductType(v)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="course">Curso Online</SelectItem>
+                <SelectItem value="ebook">Ebook (Descargable)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="edit-title">Título</Label>
             <Input id="edit-title" name="title" defaultValue={course.title} required />
@@ -700,19 +853,56 @@ function EditCourseDialog({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="edit-video_url">URL del Video (YouTube/Vimeo)</Label>
-            <Input
-              id="edit-video_url"
-              name="video_url"
-              type="url"
-              defaultValue={course.video_url || ""}
-              placeholder="https://www.youtube.com/watch?v=VIDEO_ID o https://youtu.be/VIDEO_ID"
-            />
-            <p className="text-xs text-muted-foreground">
-              Pega cualquier link de YouTube y se convertirá automáticamente al formato correcto
-            </p>
-          </div>
+          {productType === "ebook" && (
+            <div className="space-y-2">
+              <Label htmlFor="edit-download_url">Archivo PDF del Ebook *</Label>
+              <div className="flex gap-2 items-center">
+                <Input 
+                  id="edit-pdf_file" 
+                  type="file" 
+                  accept=".pdf"
+                  onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
+                  className="cursor-pointer"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Sube un nuevo archivo para reemplazar el actual.
+              </p>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    O actualiza la URL externa
+                  </span>
+                </div>
+              </div>
+              <Input 
+                id="edit-download_url" 
+                name="download_url" 
+                type="url" 
+                defaultValue={course.download_url || ""}
+                placeholder="https://..." 
+              />
+            </div>
+          )}
+
+          {productType === "course" && (
+            <div className="space-y-2">
+              <Label htmlFor="edit-video_url">URL del Video (YouTube/Vimeo)</Label>
+              <Input
+                id="edit-video_url"
+                name="video_url"
+                type="url"
+                defaultValue={course.video_url || ""}
+                placeholder="https://www.youtube.com/watch?v=VIDEO_ID o https://youtu.be/VIDEO_ID"
+              />
+              <p className="text-xs text-muted-foreground">
+                Pega cualquier link de YouTube y se convertirá automáticamente al formato correcto
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="edit-payment_type">Tipo de Pago</Label>
@@ -720,6 +910,7 @@ function EditCourseDialog({
               name="payment_type"
               value={paymentType}
               onValueChange={(value) => setPaymentType(value as "one_time" | "subscription")}
+              disabled={productType === "ebook"}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -729,6 +920,11 @@ function EditCourseDialog({
                 <SelectItem value="subscription">Suscripción (múltiples planes)</SelectItem>
               </SelectContent>
             </Select>
+            {productType === "ebook" && (
+              <p className="text-xs text-muted-foreground">
+                Los ebooks son siempre de pago único.
+              </p>
+            )}
           </div>
 
           {paymentType === "one_time" ? (
@@ -756,31 +952,33 @@ function EditCourseDialog({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-duration_hours">Duración (horas)</Label>
-              <Input
-                id="edit-duration_hours"
-                name="duration_hours"
-                type="number"
-                defaultValue={course.duration_hours || ""}
-              />
-            </div>
+          {productType === "course" && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-duration_hours">Duración (horas)</Label>
+                <Input
+                  id="edit-duration_hours"
+                  name="duration_hours"
+                  type="number"
+                  defaultValue={course.duration_hours || ""}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit-level">Nivel</Label>
-              <Select name="level" defaultValue={course.level || "beginner"}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="beginner">Principiante</SelectItem>
-                  <SelectItem value="intermediate">Intermedio</SelectItem>
-                  <SelectItem value="advanced">Avanzado</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="space-y-2">
+                <Label htmlFor="edit-level">Nivel</Label>
+                <Select name="level" defaultValue={course.level || "beginner"}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="beginner">Principiante</SelectItem>
+                    <SelectItem value="intermediate">Intermedio</SelectItem>
+                    <SelectItem value="advanced">Avanzado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex items-center space-x-2">
             <Switch id="edit-published" name="published" defaultChecked={course.published} />
