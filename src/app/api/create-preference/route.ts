@@ -56,19 +56,25 @@ export async function POST(request: NextRequest) {
     const courseImage = courses[0]?.image_url || null
 
     // Get plan info
-    const planResponse = await fetch(
-      `${supabaseUrl}/rest/v1/subscription_plans?id=eq.${planId}&select=name,duration_months`,
-      {
-        headers: {
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
-        },
-      }
-    )
+    let planName = ""
+    
+    if (planId === 'one-time') {
+      planName = "Pago Único"
+    } else {
+      const planResponse = await fetch(
+        `${supabaseUrl}/rest/v1/subscription_plans?id=eq.${planId}&select=name,duration_months`,
+        {
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${supabaseKey}`,
+          },
+        }
+      )
 
-    const plans = await planResponse.json()
-    const planInfo = plans[0]
-    const planName = planInfo?.name || `Plan ${months} ${months === 1 ? 'Mes' : 'Meses'}`
+      const plans = await planResponse.json()
+      const planInfo = plans[0]
+      planName = planInfo?.name || `Plan ${months} ${months === 1 ? 'Mes' : 'Meses'}`
+    }
 
     const preference = new Preference(client)
 
@@ -76,7 +82,7 @@ export async function POST(request: NextRequest) {
     const mainItem: any = {
       id: courseId,
       title: `${courseTitle}`,
-      description: `${planName} - Acceso por ${months} ${months === 1 ? "mes" : "meses"}`,
+      description: `${planName} - ${months === 0 ? "Acceso de por vida" : `Acceso por ${months} ${months === 1 ? "mes" : "meses"}`}`,
       category_id: "education",
       quantity: 1,
       unit_price: Number(price),
