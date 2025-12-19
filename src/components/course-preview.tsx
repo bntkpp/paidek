@@ -163,6 +163,7 @@ export function CoursePreview() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-50px" }}
                 transition={{ duration: 0.3, ease: "easeOut", delay: index * 0.1 }}
+                className="h-full"
               >
                 <Card className="overflow-hidden flex flex-col h-full border-2 hover:border-primary/20 transition-colors duration-200 group">
                   <div className="relative h-48 w-full overflow-hidden bg-muted">

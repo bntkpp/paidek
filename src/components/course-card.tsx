@@ -21,6 +21,7 @@ interface CourseCardProps {
   duration_hours: number | null
   level: string | null
   type?: string
+  initialPlans?: SubscriptionPlan[]
 }
 
 interface SubscriptionPlan {
@@ -47,21 +48,22 @@ export function CourseCard({
   duration_hours,
   level,
   type = "course",
+  initialPlans = [],
 }: CourseCardProps) {
-  const [plans, setPlans] = useState<SubscriptionPlan[]>([])
-  const [isLoadingPlans, setIsLoadingPlans] = useState(true)
+  const [plans, setPlans] = useState<SubscriptionPlan[]>(initialPlans)
+  const [isLoadingPlans, setIsLoadingPlans] = useState(initialPlans.length === 0 && payment_type === "subscription")
   
   // Detectar si es pago único
   const isOneTimePayment = payment_type === "one_time"
   const isEbook = type === "ebook"
 
   useEffect(() => {
-    if (payment_type === "subscription") {
+    if (payment_type === "subscription" && plans.length === 0) {
       loadPlans()
     } else {
       setIsLoadingPlans(false)
     }
-  }, [id, payment_type])
+  }, [id, payment_type, plans.length])
 
   const loadPlans = async () => {
     try {
@@ -102,6 +104,7 @@ export function CourseCard({
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
       whileHover={{ y: -5 }}
+      className="h-full"
     >
       <Card className="overflow-hidden flex flex-col h-full hover:shadow-xl transition-shadow">
         <motion.div 
@@ -139,7 +142,7 @@ export function CourseCard({
         <CardDescription className="line-clamp-2">{description}</CardDescription>
       </CardHeader>
 
-      <CardContent className="flex-1">
+      <CardContent className="flex-1 flex flex-col">
         {isEbook ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
             <BookOpen className="h-4 w-4" />
@@ -152,75 +155,77 @@ export function CourseCard({
           </div>
         )}
 
-        {isOneTimePayment ? (
-          // Mostrar precio único
-          <div className="mt-4">
-            <div className="flex items-baseline justify-center gap-1">
-              <span className="text-3xl font-bold">
-                ${one_time_price?.toLocaleString("es-CL")}
-              </span>
+        <div className="mt-auto">
+          {isOneTimePayment ? (
+            // Mostrar precio único
+            <div className="mt-4">
+              <div className="flex items-baseline justify-center gap-1">
+                <span className="text-3xl font-bold">
+                  ${one_time_price?.toLocaleString("es-CL")}
+                </span>
+              </div>
+              <p className="text-center text-sm text-muted-foreground mt-2">
+                Pago único
+              </p>
             </div>
-            <p className="text-center text-sm text-muted-foreground mt-2">
-              Pago único
-            </p>
-          </div>
-        ) : isLoadingPlans ? (
-          <div className="text-center py-4 text-sm text-muted-foreground">
-            Cargando planes...
-          </div>
-        ) : plans.length === 0 ? (
-          <div className="text-center py-4 text-sm text-muted-foreground">
-            Consultar precio
-          </div>
-        ) : (
-          // Mostrar tabs con planes dinámicos
-          <Tabs defaultValue={plans[0]?.id || "plan-1"} className="w-full">
-            <TabsList className={`grid w-full ${plans.length === 1 ? 'grid-cols-1' : plans.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-              {plans.map((plan) => (
-                <TabsTrigger key={plan.id} value={plan.id} className="text-xs">
-                  {plan.duration_months} {plan.duration_months === 1 ? 'Mes' : 'Meses'}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            
-            {plans.map((plan) => {
-              const monthlyRate = plan.price / plan.duration_months
-              const savings = plan.duration_months > 1 
-                ? calculateSavings(cheapestMonthlyRate, plan.price, plan.duration_months)
-                : { savings: 0, savingsPercent: 0 }
+          ) : isLoadingPlans ? (
+            <div className="text-center py-4 text-sm text-muted-foreground">
+              Cargando planes...
+            </div>
+          ) : plans.length === 0 ? (
+            <div className="text-center py-4 text-sm text-muted-foreground">
+              Consultar precio
+            </div>
+          ) : (
+            // Mostrar tabs con planes dinámicos
+            <Tabs defaultValue={plans[0]?.id || "plan-1"} className="w-full">
+              <TabsList className={`grid w-full ${plans.length === 1 ? 'grid-cols-1' : plans.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                {plans.map((plan) => (
+                  <TabsTrigger key={plan.id} value={plan.id} className="text-xs">
+                    {plan.duration_months} {plan.duration_months === 1 ? 'Mes' : 'Meses'}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              
+              {plans.map((plan) => {
+                const monthlyRate = plan.price / plan.duration_months
+                const savings = plan.duration_months > 1 
+                  ? calculateSavings(cheapestMonthlyRate, plan.price, plan.duration_months)
+                  : { savings: 0, savingsPercent: 0 }
 
-              return (
-                <TabsContent key={plan.id} value={plan.id} className="space-y-2 mt-4">
-                  <div className="flex flex-col items-center">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-bold">
-                        ${plan.price.toLocaleString("es-CL")}
-                      </span>
-                    </div>
-                    {plan.duration_months > 1 && (
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-sm text-muted-foreground">
-                          ${Math.round(monthlyRate).toLocaleString("es-CL")}/mes
+                return (
+                  <TabsContent key={plan.id} value={plan.id} className="space-y-2 mt-4">
+                    <div className="flex flex-col items-center">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-3xl font-bold">
+                          ${plan.price.toLocaleString("es-CL")}
                         </span>
-                        {savings.savingsPercent > 0 && (
-                          <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                            <TrendingUp className="h-3 w-3 mr-1" />
-                            -{savings.savingsPercent}%
-                          </Badge>
-                        )}
                       </div>
-                    )}
-                  </div>
-                  <p className="text-center text-sm text-muted-foreground">
-                    {plan.name || (plan.duration_months === 1 
-                      ? "Renovación mensual" 
-                      : `Pago único por ${plan.duration_months} meses`)}
-                  </p>
-                </TabsContent>
-              )
-            })}
-          </Tabs>
-        )}
+                      {plan.duration_months > 1 && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-sm text-muted-foreground">
+                            ${Math.round(monthlyRate).toLocaleString("es-CL")}/mes
+                          </span>
+                          {savings.savingsPercent > 0 && (
+                            <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                              <TrendingUp className="h-3 w-3 mr-1" />
+                              -{savings.savingsPercent}%
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-center text-sm text-muted-foreground">
+                      {plan.name || (plan.duration_months === 1 
+                        ? "Renovación mensual" 
+                        : `Pago único por ${plan.duration_months} meses`)}
+                    </p>
+                  </TabsContent>
+                )
+              })}
+            </Tabs>
+          )}
+        </div>
       </CardContent>
 
       <CardFooter className="pt-0">
