@@ -18,7 +18,7 @@ const faqs = [
   {
     question: "¿Cuánto tiempo tengo acceso al curso?",
     answer:
-      "Una vez que te inscribes en un curso, tienes acceso ilimitado de por vida al contenido y todas las actualizaciones futuras.",
+      "Una vez que te inscribes en un curso, tienes acceso  por el periodo que compraste y todas las actualizaciones futuras.",
   },
   {
     question: "¿Puedo hacer preguntas sobre el contenido?",

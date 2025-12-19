@@ -85,6 +85,11 @@ export function Footer() {
                   FAQ
                 </Link>
               </li>
+              <li>
+                <Link href="https://open.spotify.com/show/4qiKLjHFmZCYcU7Ko0N23K?si=OeieiuKAQQKyNUQ3tW8nxA" className="hover:text-primary transition-colors hover:translate-x-1 inline-block duration-200">
+                  Podcast
+                </Link>
+              </li>
             </ul>
           </motion.div>
 

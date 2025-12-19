@@ -26,7 +26,7 @@ const features = [
 		icon: FileCheck,
 		title: "Evaluaciones Prácticas",
 		description:
-			"Pruebas personalizadas y ejercicios interactivos para reforzar tu aprendizaje.",
+			"Pruebas personalizadas basadas en planes de MINEDUC y para reforzar tu aprendizaje.",
 	},
 ]
 
