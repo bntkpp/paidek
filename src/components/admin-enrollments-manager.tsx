@@ -248,11 +248,11 @@ export function AdminEnrollmentsManager({
                           )}
                         </div>
                       ) : (
-                        <span className="text-muted-foreground text-sm">Sin límite</span>
+                        <span className="text-muted-foreground text-sm">De por vida</span>
                       )}
                     </TableCell>
                     <TableCell>
-                      {enrollment.is_active && !isExpired ? (
+                      {enrollment.is_active && (!enrollment.expires_at || !isExpired) ? (
                         <Badge className="bg-green-500">Activo</Badge>
                       ) : isExpired ? (
                         <Badge variant="destructive">Expirado</Badge>
@@ -366,7 +366,7 @@ function CreateEnrollmentDialog({
 
     // Calcular fecha de expiración
     let expiresAt = null
-    if (planType && planType !== "none") {
+    if (planType && planType !== "none" && planType !== "lifetime") {
       const now = new Date()
       if (planType === "test_minutes") {
         // Modo de prueba: agregar minutos en lugar de meses
@@ -392,7 +392,7 @@ function CreateEnrollmentDialog({
       user_id: selectedUser,
       course_id: selectedCourse,
       is_active: formData.get("is_active") === "on",
-      plan_type: planType === "none" ? null : planType,
+      plan_type: (planType === "none" || planType === "lifetime") ? null : planType,
       expires_at: expiresAt,
       enrolled_at: new Date().toISOString(),
     }
@@ -475,6 +475,7 @@ function CreateEnrollmentDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Sin plan</SelectItem>
+                <SelectItem value="lifetime">De por vida</SelectItem>
                 <SelectItem value="test_minutes">🧪 Prueba (minutos)</SelectItem>
                 <SelectItem value="1_month">1 Mes</SelectItem>
                 <SelectItem value="4_months">4 Meses</SelectItem>
