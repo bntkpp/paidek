@@ -4,6 +4,7 @@ import { Features } from "@/components/features"
 import { CoursePreview } from "@/components/course-preview"
 import { Testimonials } from "@/components/testimonials"
 import { FAQ } from "@/components/faq"
+import { ContactSection } from "@/components/contact-section"
 import { Footer } from "@/components/footer"
 
 export default function Home() {
@@ -11,10 +12,11 @@ export default function Home() {
     <main className="min-h-screen">
       <Navbar />
       <Hero />
-      <Features />
       <CoursePreview />
+      <Features />
       <Testimonials />
       <FAQ />
+      <ContactSection />
       <Footer />
     </main>
   )
