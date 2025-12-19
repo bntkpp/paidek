@@ -454,7 +454,11 @@ export default function CheckoutPage() {
                   <div className="space-y-3">
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="h-5 w-5 text-accent" />
-                      <span>Acceso completo durante {selectedPlan.duration_months} {selectedPlan.duration_months === 1 ? "mes" : "meses"}</span>
+                      <span>
+                        {selectedPlan.duration_months === 0 
+                          ? "Acceso completo de por vida" 
+                          : `Acceso completo durante ${selectedPlan.duration_months} ${selectedPlan.duration_months === 1 ? "mes" : "meses"}`}
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <CheckCircle2 className="h-5 w-5 text-accent" />
@@ -489,10 +493,12 @@ export default function CheckoutPage() {
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Duración</span>
                       <span className="font-medium">
-                        {selectedPlan.duration_months} {selectedPlan.duration_months === 1 ? "mes" : "meses"}
+                        {selectedPlan.duration_months === 0 
+                          ? "De por vida" 
+                          : `${selectedPlan.duration_months} ${selectedPlan.duration_months === 1 ? "mes" : "meses"}`}
                       </span>
                     </div>
-                    {selectedPlan.duration_months > 1 && (
+                    {selectedPlan.duration_months > 0 && selectedPlan.duration_months > 1 && (
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">Precio mensual equivalente</span>
                         <span className="font-medium">
