@@ -70,7 +70,10 @@ export async function POST(req: Request) {
     const courseId = metadata?.course_id;
     const userId = metadata?.user_id;
     const planId = metadata?.plan_id;
-    const months = metadata?.months ? parseInt(metadata.months) : 1;
+    // Parse months safely. If it's "0", parseInt returns 0. If undefined/null, default to 1.
+    const months = metadata?.months !== undefined && metadata?.months !== null 
+      ? parseInt(metadata.months) 
+      : 1;
     const addonCourseIds = metadata?.addon_course_ids || "";
     const addonsTotal = metadata?.addons_total ? parseFloat(metadata.addons_total) : 0;
 
@@ -148,20 +151,31 @@ export async function POST(req: Request) {
       if (existingEnrollment) {
         console.log("📝 Inscripción existente encontrada, extendiendo...");
 
-        // Calcular nueva fecha de expiración
-        const currentExpiry = existingEnrollment.expires_at
-          ? new Date(existingEnrollment.expires_at)
-          : new Date();
+        let newExpiryISO: string | null = null;
 
-        // Si la fecha actual ya pasó, usar la fecha actual como base
-        const baseDate = currentExpiry > new Date() ? currentExpiry : new Date();
-        const newExpiry = new Date(baseDate);
-        newExpiry.setMonth(newExpiry.getMonth() + months);
+        if (months > 0) {
+          // Calcular nueva fecha de expiración
+          const currentExpiry = existingEnrollment.expires_at
+            ? new Date(existingEnrollment.expires_at)
+            : new Date();
+
+          // Si la fecha actual ya pasó, usar la fecha actual como base
+          const baseDate = currentExpiry > new Date() ? currentExpiry : new Date();
+          const newExpiry = new Date(baseDate);
+          newExpiry.setMonth(newExpiry.getMonth() + months);
+          newExpiryISO = newExpiry.toISOString();
+        } else {
+          // Si months es 0, establecer expiración a 100 años en el futuro (simular de por vida)
+          // Esto evita problemas con valores NULL si la base de datos tiene defaults
+          const newExpiry = new Date();
+          newExpiry.setFullYear(newExpiry.getFullYear() + 100);
+          newExpiryISO = newExpiry.toISOString();
+        }
 
         const { error: updateError } = await supabaseAdmin
           .from("enrollments")
           .update({
-            expires_at: newExpiry.toISOString(),
+            expires_at: newExpiryISO,
             is_active: true,
           })
           .eq("id", existingEnrollment.id);
@@ -169,14 +183,24 @@ export async function POST(req: Request) {
         if (updateError) {
           console.error("❌ Error actualizando inscripción:", updateError);
         } else {
-          console.log("✅ Inscripción extendida hasta:", newExpiry.toISOString());
+          console.log("✅ Inscripción extendida hasta:", newExpiryISO || "Para siempre");
         }
       } else {
         console.log("🆕 Creando nueva inscripción...");
 
         // Calcular fecha de expiración
-        const expiresAt = new Date();
-        expiresAt.setMonth(expiresAt.getMonth() + months);
+        let expiresAtISO: string | null = null;
+        
+        if (months > 0) {
+          const expiresAt = new Date();
+          expiresAt.setMonth(expiresAt.getMonth() + months);
+          expiresAtISO = expiresAt.toISOString();
+        } else {
+          // Si months es 0, establecer expiración a 100 años en el futuro (simular de por vida)
+          const expiresAt = new Date();
+          expiresAt.setFullYear(expiresAt.getFullYear() + 100);
+          expiresAtISO = expiresAt.toISOString();
+        }
 
         const { error: enrollError } = await supabaseAdmin
           .from("enrollments")
@@ -184,7 +208,7 @@ export async function POST(req: Request) {
             user_id: userId,
             course_id: courseId,
             enrolled_at: new Date().toISOString(),
-            expires_at: expiresAt.toISOString(),
+            expires_at: expiresAtISO,
             is_active: true,
             progress_percentage: 0,
           });
@@ -192,7 +216,7 @@ export async function POST(req: Request) {
         if (enrollError) {
           console.error("❌ Error creando inscripción:", enrollError);
         } else {
-          console.log("✅ Inscripción creada exitosamente, expira:", expiresAt.toISOString());
+          console.log("✅ Inscripción creada exitosamente, expira:", expiresAtISO || "Para siempre");
         }
       }
 
@@ -220,8 +244,17 @@ export async function POST(req: Request) {
             }
             
             // Calcular fecha de expiración para el add-on (misma que el curso principal)
-            const addonExpiresAt = new Date();
-            addonExpiresAt.setMonth(addonExpiresAt.getMonth() + months);
+            let addonExpiresAtISO: string | null = null;
+            if (months > 0) {
+              const addonExpiresAt = new Date();
+              addonExpiresAt.setMonth(addonExpiresAt.getMonth() + months);
+              addonExpiresAtISO = addonExpiresAt.toISOString();
+            } else {
+              // 100 años para add-ons también
+              const addonExpiresAt = new Date();
+              addonExpiresAt.setFullYear(addonExpiresAt.getFullYear() + 100);
+              addonExpiresAtISO = addonExpiresAt.toISOString();
+            }
 
             // Verificar si ya existe enrollment para este add-on
             const { data: existingAddonEnrollment } = await supabaseAdmin
@@ -233,17 +266,26 @@ export async function POST(req: Request) {
 
             if (existingAddonEnrollment) {
               // Extender enrollment existente
-              const currentExpiry = existingAddonEnrollment.expires_at
-                ? new Date(existingAddonEnrollment.expires_at)
-                : new Date();
-              const baseDate = currentExpiry > new Date() ? currentExpiry : new Date();
-              const newExpiry = new Date(baseDate);
-              newExpiry.setMonth(newExpiry.getMonth() + months);
+              let newExpiryISO: string | null = null;
+              
+              if (months > 0) {
+                const currentExpiry = existingAddonEnrollment.expires_at
+                  ? new Date(existingAddonEnrollment.expires_at)
+                  : new Date();
+                const baseDate = currentExpiry > new Date() ? currentExpiry : new Date();
+                const newExpiry = new Date(baseDate);
+                newExpiry.setMonth(newExpiry.getMonth() + months);
+                newExpiryISO = newExpiry.toISOString();
+              } else {
+                const newExpiry = new Date();
+                newExpiry.setFullYear(newExpiry.getFullYear() + 100);
+                newExpiryISO = newExpiry.toISOString();
+              }
 
               await supabaseAdmin
                 .from("enrollments")
                 .update({
-                  expires_at: newExpiry.toISOString(),
+                  expires_at: newExpiryISO,
                   is_active: true,
                 })
                 .eq("id", existingAddonEnrollment.id);
@@ -257,7 +299,7 @@ export async function POST(req: Request) {
                   user_id: userId,
                   course_id: addonCourseId,
                   enrolled_at: new Date().toISOString(),
-                  expires_at: addonExpiresAt.toISOString(),
+                  expires_at: addonExpiresAtISO,
                   is_active: true,
                   progress_percentage: 0,
                 })

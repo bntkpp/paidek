@@ -129,7 +129,8 @@ export async function POST(request: NextRequest) {
         course_id: courseId,
         user_id: userId,
         plan_id: planId,
-        months: months.toString(),
+        // Si es 0 (pago único/ebook), enviamos 62 meses para asegurar que no expire pronto
+        months: months === 0 ? "62" : months.toString(),
         addon_course_ids: selectedAddons && selectedAddons.length > 0 
           ? selectedAddons.map((a: any) => a.courseId).join(',') 
           : "",
