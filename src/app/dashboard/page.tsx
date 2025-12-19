@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { BookOpen, Clock, TrendingUp } from "lucide-react"
+import { BookOpen, Clock, TrendingUp, Download } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -31,7 +31,7 @@ export default async function DashboardPage() {
     .order("enrolled_at", { ascending: false })
 
   // Filtrar en el servidor las que están activas Y no expiradas
-  const enrollments = allEnrollments?.filter((enrollment) => {
+  const activeEnrollments = allEnrollments?.filter((enrollment) => {
     if (!enrollment.is_active) return false
 
     // Si tiene fecha de expiración, verificar que no haya expirado
@@ -41,6 +41,10 @@ export default async function DashboardPage() {
 
     return true
   }) || []
+
+  // Separar cursos y ebooks
+  const courseEnrollments = activeEnrollments.filter(e => e.courses?.type !== 'ebook')
+  const ebookEnrollments = activeEnrollments.filter(e => e.courses?.type === 'ebook')
 
   return (
     <DashboardLayout>
@@ -61,7 +65,7 @@ export default async function DashboardPage() {
               <BookOpen className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{enrollments?.length || 0}</div>
+              <div className="text-2xl font-bold">{courseEnrollments.length}</div>
               <p className="text-xs text-muted-foreground">Cursos en los que estás inscrito</p>
             </CardContent>
           </Card>
@@ -73,10 +77,10 @@ export default async function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {enrollments?.length
+                {courseEnrollments.length
                   ? Math.round(
-                    enrollments.reduce((acc, e) => acc + (e.progress_percentage || 0), 0) /
-                    enrollments.length
+                    courseEnrollments.reduce((acc, e) => acc + (e.progress_percentage || 0), 0) /
+                    courseEnrollments.length
                   )
                   : 0}
                 %
@@ -86,18 +90,20 @@ export default async function DashboardPage() {
           </Card>
         </div>
 
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <h2 className="text-xl md:text-2xl font-bold">Mis Cursos</h2>
-            <Button asChild className="w-full sm:w-auto">
-              <Link href="/courses">Explorar Cursos</Link>
-            </Button>
-          </div>
+        <div className="space-y-8">
+          {/* Sección de Cursos */}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <h2 className="text-xl md:text-2xl font-bold">Mis Cursos</h2>
+              <Button asChild className="w-full sm:w-auto">
+                <Link href="/courses">Explorar Cursos</Link>
+              </Button>
+            </div>
 
-          {enrollments && enrollments.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {enrollments.map((enrollment) => (
-                <Card key={enrollment.id} className="overflow-hidden flex flex-col h-full">
+            {courseEnrollments.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {courseEnrollments.map((enrollment) => (
+                  <Card key={enrollment.id} className="overflow-hidden flex flex-col h-full">
                   <div className="h-56 relative bg-muted flex-shrink-0 overflow-hidden">
                     {enrollment.courses?.image_url ? (
                       <img
@@ -154,6 +160,57 @@ export default async function DashboardPage() {
                 </Button>
               </CardContent>
             </Card>
+          )}
+          </div>
+
+          {/* Sección de Ebooks */}
+          {ebookEnrollments.length > 0 && (
+            <div className="space-y-4 pt-4 border-t">
+              <h2 className="text-xl md:text-2xl font-bold">Mis Ebooks</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {ebookEnrollments.map((enrollment) => (
+                  <Card key={enrollment.id} className="overflow-hidden flex flex-col h-full border-purple-200 dark:border-purple-900">
+                    <div className="h-56 relative bg-muted flex-shrink-0 overflow-hidden">
+                      {enrollment.courses?.image_url ? (
+                        <img
+                          src={enrollment.courses.image_url}
+                          alt={enrollment.courses.title}
+                          className="object-cover w-full h-full"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full bg-purple-50 dark:bg-purple-950/20">
+                          <BookOpen className="h-12 w-12 text-purple-400" />
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2">
+                        <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm">
+                          Ebook
+                        </span>
+                      </div>
+                    </div>
+                    <CardHeader className="flex-shrink-0">
+                      <CardTitle className="line-clamp-2 min-h-[3.5rem]">{enrollment.courses?.title}</CardTitle>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        <span>Acceso de por vida</span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4 flex-1 flex flex-col justify-end">
+                      <Button asChild className="w-full bg-purple-600 hover:bg-purple-700">
+                        <a 
+                          href={enrollment.courses?.download_url || '#'} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          Descargar PDF
+                        </a>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </div>
