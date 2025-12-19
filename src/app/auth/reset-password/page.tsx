@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Navbar } from "@/components/navbar"
 import Link from "next/link"
 import { useState } from "react"
-import { CheckCircle2, ArrowLeft } from "lucide-react"
+import { CheckCircle2, ArrowLeft, KeyRound } from "lucide-react"
 
 export default function ResetPasswordPage() {
   const [email, setEmail] = useState("")
@@ -43,28 +43,36 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-muted/40">
       <Navbar />
       <div className="flex-1 flex items-center justify-center p-6 md:p-10">
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-md">
           <div className="flex flex-col gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-2xl">Recuperar Contraseña</CardTitle>
-                <CardDescription>
+            <Card className="border-none shadow-xl">
+              <CardHeader className="text-center space-y-2">
+                <div className="flex justify-center mb-2">
+                  <div className="p-3 rounded-full bg-primary/10">
+                    <KeyRound className="h-8 w-8 text-primary" />
+                  </div>
+                </div>
+                <CardTitle className="text-2xl font-bold">Recuperar Contraseña</CardTitle>
+                <CardDescription className="text-base">
                   Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {success ? (
-                  <div className="space-y-4">
-                    <Alert className="border-green-500/50 bg-green-50 dark:bg-green-900/20">
-                      <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-                      <AlertDescription className="text-green-800 dark:text-green-200">
-                        ¡Correo enviado! Revisa tu bandeja de entrada y sigue las instrucciones para restablecer tu contraseña.
-                      </AlertDescription>
-                    </Alert>
-                    <Button asChild variant="outline" className="w-full">
+                  <div className="space-y-6">
+                    <div className="flex flex-col items-center justify-center text-center space-y-2 p-4 bg-green-50 dark:bg-green-900/10 rounded-lg border border-green-100 dark:border-green-900/20">
+                      <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-full">
+                        <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
+                      </div>
+                      <h3 className="font-semibold text-green-900 dark:text-green-100">¡Correo enviado!</h3>
+                      <p className="text-sm text-green-700 dark:text-green-300">
+                        Revisa tu bandeja de entrada y sigue las instrucciones para restablecer tu contraseña.
+                      </p>
+                    </div>
+                    <Button asChild variant="outline" className="w-full h-11">
                       <Link href="/auth/login">
                         <ArrowLeft className="h-4 w-4 mr-2" />
                         Volver a Inicio de Sesión
@@ -79,11 +87,12 @@ export default function ResetPasswordPage() {
                         <Input
                           id="email"
                           type="email"
-                          placeholder="correo@ejemplo.com"
+                          placeholder="nombre@ejemplo.com"
                           required
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           disabled={isLoading}
+                          className="h-11"
                         />
                       </div>
                       {error && (
@@ -91,13 +100,13 @@ export default function ResetPasswordPage() {
                           <AlertDescription>{error}</AlertDescription>
                         </Alert>
                       )}
-                      <Button type="submit" className="w-full" disabled={isLoading}>
+                      <Button type="submit" className="w-full h-11 text-base" disabled={isLoading}>
                         {isLoading ? "Enviando..." : "Enviar Enlace de Recuperación"}
                       </Button>
                     </div>
-                    <div className="mt-4 text-center text-sm">
+                    <div className="mt-6 text-center text-sm text-muted-foreground">
                       ¿Recordaste tu contraseña?{" "}
-                      <Link href="/auth/login" className="underline underline-offset-4">
+                      <Link href="/auth/login" className="text-primary font-medium hover:underline underline-offset-4">
                         Iniciar Sesión
                       </Link>
                     </div>

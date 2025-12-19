@@ -11,7 +11,7 @@ import { Navbar } from "@/components/navbar"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
-import { CheckCircle2, AlertCircle } from "lucide-react"
+import { CheckCircle2, AlertCircle, Lock, ArrowLeft } from "lucide-react"
 
 export default function UpdatePasswordPage() {
   const [password, setPassword] = useState("")
@@ -68,6 +68,9 @@ export default function UpdatePasswordPage() {
 
       setSuccess(true)
       
+      // Sign out to clear the recovery session
+      await supabase.auth.signOut()
+      
       // Redirect after 2 seconds
       setTimeout(() => {
         router.push("/auth/login")
@@ -80,36 +83,47 @@ export default function UpdatePasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-muted/40">
       <Navbar />
       <div className="flex-1 flex items-center justify-center p-6 md:p-10">
-        <div className="w-full max-w-sm">
+        <div className="w-full max-w-md">
           <div className="flex flex-col gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-2xl">Nueva Contraseña</CardTitle>
-                <CardDescription>
-                  Ingresa tu nueva contraseña
+            <Card className="border-none shadow-xl">
+              <CardHeader className="text-center space-y-2">
+                <div className="flex justify-center mb-2">
+                  <div className="p-3 rounded-full bg-primary/10">
+                    <Lock className="h-8 w-8 text-primary" />
+                  </div>
+                </div>
+                <CardTitle className="text-2xl font-bold">Nueva Contraseña</CardTitle>
+                <CardDescription className="text-base">
+                  Ingresa tu nueva contraseña para asegurar tu cuenta
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {success ? (
-                  <Alert className="border-green-500/50 bg-green-50 dark:bg-green-900/20">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    <AlertDescription className="text-green-800 dark:text-green-200">
-                      ¡Contraseña actualizada con éxito! Redirigiendo al inicio de sesión...
-                    </AlertDescription>
-                  </Alert>
+                  <div className="flex flex-col items-center justify-center text-center space-y-4 p-6 bg-green-50 dark:bg-green-900/10 rounded-lg border border-green-100 dark:border-green-900/20">
+                    <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full animate-in zoom-in duration-300">
+                      <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="font-semibold text-lg text-green-900 dark:text-green-100">¡Contraseña Actualizada!</h3>
+                      <p className="text-green-700 dark:text-green-300">
+                        Serás redirigido al inicio de sesión en unos segundos...
+                      </p>
+                    </div>
+                  </div>
                 ) : !hasSession ? (
-                  <div className="space-y-4">
-                    <Alert variant="destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>
+                  <div className="space-y-6">
+                    <Alert variant="destructive" className="border-red-200 bg-red-50 dark:bg-red-900/10 dark:border-red-900/20">
+                      <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                      <AlertDescription className="text-red-800 dark:text-red-200 ml-2">
                         {error || "El enlace ha expirado o es inválido."}
                       </AlertDescription>
                     </Alert>
-                    <Button asChild className="w-full">
+                    <Button asChild className="w-full h-11" variant="outline">
                       <Link href="/auth/reset-password">
+                        <ArrowLeft className="h-4 w-4 mr-2" />
                         Solicitar Nuevo Enlace
                       </Link>
                     </Button>
@@ -127,6 +141,7 @@ export default function UpdatePasswordPage() {
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           disabled={isLoading}
+                          className="h-11"
                         />
                       </div>
                       <div className="grid gap-2">
@@ -139,6 +154,7 @@ export default function UpdatePasswordPage() {
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
                           disabled={isLoading}
+                          className="h-11"
                         />
                       </div>
                       {error && (
@@ -146,7 +162,7 @@ export default function UpdatePasswordPage() {
                           <AlertDescription>{error}</AlertDescription>
                         </Alert>
                       )}
-                      <Button type="submit" className="w-full" disabled={isLoading}>
+                      <Button type="submit" className="w-full h-11 text-base" disabled={isLoading}>
                         {isLoading ? "Actualizando..." : "Actualizar Contraseña"}
                       </Button>
                     </div>
