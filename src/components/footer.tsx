@@ -90,6 +90,16 @@ export function Footer() {
                   Podcast
                 </Link>
               </li>
+              <li>
+                <Link href="/terms" className="hover:text-primary transition-colors hover:translate-x-1 inline-block duration-200">
+                  Términos y Condiciones
+                </Link>
+              </li>
+              <li>
+                <Link href="/privacy" className="hover:text-primary transition-colors hover:translate-x-1 inline-block duration-200">
+                  Política de Privacidad
+                </Link>
+              </li>
             </ul>
           </motion.div>
 
