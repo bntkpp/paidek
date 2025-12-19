@@ -109,22 +109,43 @@ export default function CheckoutPage() {
         }
       }
 
-      // Cargar planes de suscripción desde la base de datos
-      const { data: plansData } = await supabase
-        .from("subscription_plans")
-        .select("*")
-        .eq("course_id", params.courseId)
-        .eq("is_active", true)
-        .order("display_order", { ascending: true })
+      // Cargar planes de suscripción o configurar pago único
+      let loadedPlans: SubscriptionPlan[] = []
 
-      if (plansData) {
-        setPlans(plansData)
+      if (courseData.payment_type === 'one_time' || courseData.type === 'ebook') {
+        // Usar one_time_price si existe, o un valor por defecto si es necesario
+        const price = courseData.one_time_price || 0
+        
+        loadedPlans = [{
+          id: 'one-time',
+          course_id: courseData.id,
+          duration_months: 0, // 0 para indicar vida útil/pago único
+          price: price,
+          name: 'Pago Único',
+          description: 'Acceso completo de por vida',
+          is_popular: true,
+          display_order: 1,
+          is_active: true
+        }]
+      } else {
+        const { data: plansData } = await supabase
+          .from("subscription_plans")
+          .select("*")
+          .eq("course_id", params.courseId)
+          .eq("is_active", true)
+          .order("display_order", { ascending: true })
 
-        // Si no hay plan seleccionado, seleccionar el popular o el primero
-        if (!selectedPlanId && plansData.length > 0) {
-          const popularPlan = plansData.find(p => p.is_popular)
-          setSelectedPlanId(popularPlan?.id || plansData[0].id)
+        if (plansData) {
+          loadedPlans = plansData
         }
+      }
+
+      setPlans(loadedPlans)
+
+      // Si no hay plan seleccionado, seleccionar el popular o el primero
+      if (!selectedPlanId && loadedPlans.length > 0) {
+        const popularPlan = loadedPlans.find(p => p.is_popular)
+        setSelectedPlanId(popularPlan?.id || loadedPlans[0].id)
       }
 
       // 🎁 Cargar complementos opcionales (add-ons)
@@ -156,8 +177,14 @@ export default function CheckoutPage() {
   const selectedPlan = plans.find(p => p.id === selectedPlanId)
 
   const calculateSavings = (plan: SubscriptionPlan) => {
-    // Calcular precio mensual más barato entre todos los planes
-    const cheapestMonthlyRate = Math.min(...plans.map(p => p.price / p.duration_months))
+    if (plan.duration_months === 0) return null
+    
+    // Filtrar planes con duración 0 para el cálculo
+    const validPlans = plans.filter(p => p.duration_months > 0)
+    if (validPlans.length === 0) return null
+
+    // Calcular precio mensual más barato entre todos los planes válidos
+    const cheapestMonthlyRate = Math.min(...validPlans.map(p => p.price / p.duration_months))
     const regularTotal = cheapestMonthlyRate * plan.duration_months
     const savings = regularTotal - plan.price
     const savingsPercent = Math.round((savings / regularTotal) * 100)
@@ -301,7 +328,7 @@ export default function CheckoutPage() {
                   <div className="space-y-3">
                     {plans.map((plan) => {
                       const savings = calculateSavings(plan)
-                      const monthlyRate = plan.price / plan.duration_months
+                      const monthlyRate = plan.duration_months > 0 ? plan.price / plan.duration_months : 0
 
                       return (
                         <button
@@ -325,13 +352,17 @@ export default function CheckoutPage() {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="font-semibold">
-                                {plan.name || `Plan ${plan.duration_months} ${plan.duration_months === 1 ? 'Mes' : 'Meses'}`}
+                                {plan.name || (plan.duration_months === 0 ? 'Acceso de por vida' : `Plan ${plan.duration_months} ${plan.duration_months === 1 ? 'Mes' : 'Meses'}`)}
                               </p>
                               {plan.description ? (
                                 <p className="text-sm text-muted-foreground">{plan.description}</p>
                               ) : (
                                 <p className="text-sm text-muted-foreground">
-                                  {plan.duration_months === 1 ? 'Renovación mensual' : `$${Math.round(monthlyRate).toLocaleString("es-CL")}/mes`}
+                                  {plan.duration_months === 0 
+                                    ? 'Pago único' 
+                                    : plan.duration_months === 1 
+                                      ? 'Renovación mensual' 
+                                      : `$${Math.round(monthlyRate).toLocaleString("es-CL")}/mes`}
                                 </p>
                               )}
                             </div>
