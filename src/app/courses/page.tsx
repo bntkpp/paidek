@@ -23,9 +23,19 @@ interface Course {
   type?: string
 }
 
+interface SubscriptionPlan {
+  id: string
+  duration_months: number
+  price: number
+  name: string | null
+  is_popular: boolean
+  course_id: string
+}
+
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [filteredCourses, setFilteredCourses] = useState<Course[]>([])
+  const [coursePlans, setCoursePlans] = useState<Record<string, SubscriptionPlan[]>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [levelFilter, setLevelFilter] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
@@ -33,7 +43,7 @@ export default function CoursesPage() {
   useEffect(() => {
     async function fetchCourses() {
       const supabase = createClient()
-      const { data, error } = await supabase
+      const { data: coursesData, error } = await supabase
         .from("courses")
         .select("*")
         .eq("published", true)
@@ -42,8 +52,28 @@ export default function CoursesPage() {
       if (error) {
         console.error("Error fetching courses:", error)
       } else {
-        setCourses(data || [])
-        setFilteredCourses(data || [])
+        setCourses(coursesData || [])
+        setFilteredCourses(coursesData || [])
+
+        // Fetch plans for all courses
+        if (coursesData && coursesData.length > 0) {
+          const courseIds = coursesData.map(c => c.id)
+          const { data: plansData } = await supabase
+            .from("subscription_plans")
+            .select("*")
+            .in("course_id", courseIds)
+            .eq("is_active", true)
+            .order("price", { ascending: true })
+
+          const plansByCourse: Record<string, SubscriptionPlan[]> = {}
+          plansData?.forEach((plan) => {
+            if (!plansByCourse[plan.course_id]) {
+              plansByCourse[plan.course_id] = []
+            }
+            plansByCourse[plan.course_id].push(plan)
+          })
+          setCoursePlans(plansByCourse)
+        }
       }
       setIsLoading(false)
     }
@@ -155,6 +185,7 @@ export default function CoursesPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 * index, duration: 0.5 }}
+                    className="h-full"
                   >
                     <CourseCard
                       id={course.id}
@@ -166,6 +197,7 @@ export default function CoursesPage() {
                       duration_hours={course.duration_hours}
                       level={course.level}
                       type={course.type}
+                      initialPlans={coursePlans[course.id] || []}
                     />
                   </motion.div>
                 ))}
