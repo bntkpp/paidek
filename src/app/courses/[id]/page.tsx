@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Clock, BookOpen, Award, CheckCircle2, TrendingUp, Home, Brain, Target, Star } from "lucide-react"
+import { Clock, BookOpen, Award, CheckCircle2, TrendingUp, Home, Brain, Target, Star, Download } from "lucide-react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
@@ -68,8 +68,9 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
     .eq("is_active", true)
     .order("display_order", { ascending: true })
 
-  // Detect payment type
+  // Detect payment type and product type
   const isOneTimePayment = course.payment_type === "one_time"
+  const isEbook = course.type === "ebook"
 
   // Calculate savings for subscription plans
   const calculateSavings = (cheapestMonthlyRate: number, totalPrice: number, months: number) => {
@@ -94,6 +95,11 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2">
                 <div className="flex items-center gap-2 mb-4">
+                  {isEbook && (
+                    <Badge className="bg-purple-600 hover:bg-purple-700">
+                      Ebook
+                    </Badge>
+                  )}
                   {course.level && (
                     <Badge variant="secondary" className={levelColors[course.level]}>
                       {levelLabels[course.level]}
@@ -129,11 +135,19 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
                       </span>
                     </div>
                   )}
-                  {modules && modules.length > 0 && (
+                  {!isEbook && modules && modules.length > 0 && (
                     <div className="flex items-center gap-2">
                       <BookOpen className="h-5 w-5 text-primary" />
                       <span>
                         <strong>{modules.length}</strong> módulos
+                      </span>
+                    </div>
+                  )}
+                  {isEbook && (
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="h-5 w-5 text-primary" />
+                      <span>
+                        Formato <strong>PDF Descargable</strong>
                       </span>
                     </div>
                   )}
@@ -143,7 +157,7 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
               <div className="lg:col-span-1">
                 <Card className="sticky top-20">
                   <CardHeader>
-                    <CardTitle className="text-center">{isOneTimePayment ? "Precio del Curso" : "Elige tu Plan"}</CardTitle>
+                    <CardTitle className="text-center">{isOneTimePayment ? (isEbook ? "Precio del Ebook" : "Precio del Curso") : "Elige tu Plan"}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     {course.image_url && (
@@ -163,13 +177,21 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
                           <p className="text-sm text-muted-foreground">Pago único - Acceso de por vida</p>
                         </div>
                         {isEnrolled ? (
-                          <Button size="lg" className="w-full" asChild>
-                            <Link href={`/learn/${id}`}>Ir al Curso</Link>
-                          </Button>
+                          isEbook ? (
+                            <Button size="lg" className="w-full" asChild>
+                              <a href={course.download_url} target="_blank" rel="noopener noreferrer">
+                                <Download className="mr-2 h-4 w-4" /> Descargar Ebook
+                              </a>
+                            </Button>
+                          ) : (
+                            <Button size="lg" className="w-full" asChild>
+                              <Link href={`/learn/${id}`}>Ir al Curso</Link>
+                            </Button>
+                          )
                         ) : (
                           <Button size="lg" className="w-full" asChild>
                             <Link href={user ? `/checkout/${id}` : "/auth/sign-up"}>
-                              {user ? "Comprar Curso" : "Registrarse"}
+                              {user ? (isEbook ? "Comprar Ebook" : "Comprar Curso") : "Registrarse"}
                             </Link>
                           </Button>
                         )}
@@ -254,23 +276,39 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
                     )}
 
                     <div className="space-y-2 text-sm border-t pt-4">
-                      <p className="font-semibold mb-3">Este plan incluye:</p>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
-                        <span>Acceso completo al curso</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
-                        <span>Material descargable</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
-                        <span>Soporte de profesores</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
-                        <span>Actualizaciones incluidas</span>
-                      </div>
+                      {isEbook ? (
+                        <>
+                          <p className="font-semibold mb-3">Este ebook incluye:</p>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
+                            <span>Descarga inmediata en PDF</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
+                            <span>Acceso de por vida</span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-semibold mb-3">Este plan incluye:</p>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
+                            <span>Acceso completo al curso</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
+                            <span>Material descargable</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
+                            <span>Soporte de profesores</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
+                            <span>Actualizaciones incluidas</span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

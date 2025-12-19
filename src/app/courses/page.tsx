@@ -20,6 +20,7 @@ interface Course {
   duration_hours: number | null
   level: string | null
   published: boolean
+  type?: string
 }
 
 export default function CoursesPage() {
@@ -164,6 +165,7 @@ export default function CoursesPage() {
                       one_time_price={course.one_time_price}
                       duration_hours={course.duration_hours}
                       level={course.level}
+                      type={course.type}
                     />
                   </motion.div>
                 ))}
