@@ -38,6 +38,41 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
+  // Verificar si es una sesión de recuperación de contraseña
+  // Esto previene que el usuario navegue por el sitio con una sesión de recuperación
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session?.access_token) {
+    try {
+      const base64Url = session.access_token.split('.')[1]
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+      const payload = JSON.parse(jsonPayload)
+      
+      const amr = payload.amr || []
+      const isRecovery = Array.isArray(amr) && amr.some((a: any) => a.method === 'recovery')
+
+      if (isRecovery) {
+        // Permitir solo la página de actualización de contraseña y endpoints necesarios
+        const allowedPaths = [
+          '/auth/update-password',
+          '/auth/sign-out',
+          '/_next',
+          '/favicon.ico'
+        ]
+        
+        const isAllowed = allowedPaths.some(path => pathname.startsWith(path)) || pathname.startsWith('/api/auth')
+
+        if (!isAllowed) {
+          return NextResponse.redirect(new URL('/auth/update-password', request.url))
+        }
+      }
+    } catch (e) {
+      // Error silencioso al decodificar, continuar normal
+    }
+  }
+
   // Proteger rutas de admin
   if (pathname.startsWith('/admin')) {
     // Si no hay usuario, redirigir a login
