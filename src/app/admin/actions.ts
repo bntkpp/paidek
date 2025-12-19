@@ -525,7 +525,21 @@ export async function deleteUser(userId: string) {
     }
   )
 
-  // 1. Eliminar de la tabla profiles
+  // 1. Eliminar datos relacionados (para evitar errores de Foreign Key)
+  
+  // Eliminar progreso
+  await supabase.from("progress").delete().eq("user_id", userId)
+  
+  // Eliminar formularios de ingreso
+  await supabase.from("student_intake_forms").delete().eq("user_id", userId)
+  
+  // Eliminar inscripciones
+  await supabase.from("enrollments").delete().eq("user_id", userId)
+  
+  // Eliminar pagos
+  await supabase.from("payments").delete().eq("user_id", userId)
+
+  // 2. Eliminar de la tabla profiles
   const { error: profileError } = await supabase
     .from("profiles")
     .delete()
@@ -535,7 +549,7 @@ export async function deleteUser(userId: string) {
     throw new Error(`Error al eliminar perfil: ${profileError.message}`)
   }
 
-  // 2. Eliminar del sistema de autenticación de Supabase
+  // 3. Eliminar del sistema de autenticación de Supabase
   const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId)
 
   if (authError) {
