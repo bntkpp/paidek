@@ -292,6 +292,7 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
   const [questionPackPrice, setQuestionPackPrice] = useState<string>("")
   const [availableCourses, setAvailableCourses] = useState<any[]>([])
   const [pdfFile, setPdfFile] = useState<File | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const { toast } = useToast()
   const supabase = createClient()
 
@@ -330,6 +331,25 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
     let downloadUrl = formData.get("download_url") as string || null
 
     try {
+      // Upload Image if selected
+      let imageUrl = formData.get("image_url") as string
+      if (imageFile) {
+        const fileExt = imageFile.name.split('.').pop()
+        const fileName = `course-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+        
+        const { error: uploadError } = await supabase.storage
+          .from('courses')
+          .upload(fileName, imageFile)
+
+        if (uploadError) throw new Error(`Error al subir imagen: ${uploadError.message}`)
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('courses')
+          .getPublicUrl(fileName)
+          
+        imageUrl = publicUrl
+      }
+
       // Upload PDF if selected
       if (productType === "ebook" && pdfFile) {
         const fileExt = pdfFile.name.split('.').pop()
@@ -352,7 +372,7 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
         title: formData.get("title") as string,
         description: formData.get("description") as string,
         short_description: formData.get("short_description") as string,
-        image_url: formData.get("image_url") as string,
+        image_url: imageUrl,
         video_url: convertToYouTubeEmbed(videoUrl),
         payment_type: currentPaymentType,
         one_time_price: currentPaymentType === "one_time" ? parseFloat(formData.get("one_time_price") as string) || null : null,
@@ -389,6 +409,7 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
       setQuestionPackPrice("")
       setProductType("course")
       setPdfFile(null)
+      setImageFile(null)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -447,7 +468,29 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="image_url">URL de Imagen</Label>
+            <Label htmlFor="image_url">Imagen de Portada</Label>
+            <div className="flex gap-2 items-center">
+              <Input 
+                id="image_file" 
+                type="file" 
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                className="cursor-pointer"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Sube una imagen para la portada del curso.
+            </p>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  O ingresa una URL externa
+                </span>
+              </div>
+            </div>
             <Input id="image_url" name="image_url" type="url" placeholder="https://ejemplo.com/imagen.jpg" />
           </div>
 
@@ -652,6 +695,7 @@ function EditCourseDialog({
   const [availableCourses, setAvailableCourses] = useState<any[]>([])
   const [existingAddonId, setExistingAddonId] = useState<string | null>(null)
   const [pdfFile, setPdfFile] = useState<File | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const { toast } = useToast()
   const supabase = createClient()
 
@@ -709,6 +753,25 @@ function EditCourseDialog({
     let downloadUrl = formData.get("download_url") as string || null
 
     try {
+      // Upload Image if selected
+      let imageUrl = formData.get("image_url") as string
+      if (imageFile) {
+        const fileExt = imageFile.name.split('.').pop()
+        const fileName = `course-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
+        
+        const { error: uploadError } = await supabase.storage
+          .from('courses')
+          .upload(fileName, imageFile)
+
+        if (uploadError) throw new Error(`Error al subir imagen: ${uploadError.message}`)
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('courses')
+          .getPublicUrl(fileName)
+          
+        imageUrl = publicUrl
+      }
+
       // Upload PDF if selected
       if (productType === "ebook" && pdfFile) {
         const fileExt = pdfFile.name.split('.').pop()
@@ -731,7 +794,7 @@ function EditCourseDialog({
         title: formData.get("title") as string,
         description: formData.get("description") as string,
         short_description: formData.get("short_description") as string,
-        image_url: formData.get("image_url") as string,
+        image_url: imageUrl,
         video_url: convertToYouTubeEmbed(videoUrl),
         payment_type: currentPaymentType,
         one_time_price: currentPaymentType === "one_time" ? parseFloat(formData.get("one_time_price") as string) || null : null,
@@ -776,6 +839,7 @@ function EditCourseDialog({
       })
       setIsOpen(false)
       setPdfFile(null)
+      setImageFile(null)
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -843,7 +907,29 @@ function EditCourseDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-image_url">URL de Imagen</Label>
+            <Label htmlFor="edit-image_url">Imagen de Portada</Label>
+            <div className="flex gap-2 items-center">
+              <Input 
+                id="edit-image_file" 
+                type="file" 
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                className="cursor-pointer"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Sube una nueva imagen para reemplazar la actual.
+            </p>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  O actualiza la URL externa
+                </span>
+              </div>
+            </div>
             <Input
               id="edit-image_url"
               name="image_url"
