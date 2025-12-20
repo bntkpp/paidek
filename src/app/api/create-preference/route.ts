@@ -134,6 +134,9 @@ export async function POST(request: NextRequest) {
         addon_course_ids: selectedAddons && selectedAddons.length > 0 
           ? selectedAddons.map((a: any) => a.courseId).join(',') 
           : "",
+        addon_durations: selectedAddons && selectedAddons.length > 0
+          ? selectedAddons.map((a: any) => `${a.courseId}:${a.months !== undefined ? a.months : 'default'}`).join(',')
+          : "",
         addons_total: addonsTotal ? addonsTotal.toString() : "0",
       },
     }

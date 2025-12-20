@@ -69,6 +69,18 @@ export async function POST(req: Request) {
       addonCourseIdList = addonCourseIds.split(',').filter((id: string) => id.trim() !== "");
     }
 
+    // Parse addon durations
+    const addonDurationsStr = metadata?.addon_durations || "";
+    const addonDurationsMap: Record<string, string> = {};
+    if (addonDurationsStr) {
+        addonDurationsStr.split(',').forEach((item: string) => {
+            const parts = item.split(':');
+            if (parts.length === 2) {
+                addonDurationsMap[parts[0]] = parts[1];
+            }
+        });
+    }
+
     if (!courseId || !userId) {
       return NextResponse.json({ error: "Missing metadata" }, { status: 400 });
     }
@@ -215,11 +227,19 @@ export async function POST(req: Request) {
               continue;
             }
             
-            // Calcular fecha de expiración para el add-on (misma que el curso principal)
+            // Determine duration for this addon
+            const durationVal = addonDurationsMap[addonCourseId];
+            let addonMonths = months; // Default to main course duration
+            
+            if (durationVal && durationVal !== 'default') {
+                addonMonths = parseInt(durationVal);
+            }
+
+            // Calcular fecha de expiración para el add-on
             let addonExpiresAtISO: string | null = null;
-            if (months > 0) {
+            if (addonMonths > 0) {
               const addonExpiresAt = new Date();
-              addonExpiresAt.setMonth(addonExpiresAt.getMonth() + months);
+              addonExpiresAt.setMonth(addonExpiresAt.getMonth() + addonMonths);
               addonExpiresAtISO = addonExpiresAt.toISOString();
             } else {
               // 100 años para add-ons también
@@ -240,13 +260,13 @@ export async function POST(req: Request) {
               // Extender enrollment existente
               let newExpiryISO: string | null = null;
               
-              if (months > 0) {
+              if (addonMonths > 0) {
                 const currentExpiry = existingAddonEnrollment.expires_at
                   ? new Date(existingAddonEnrollment.expires_at)
                   : new Date();
                 const baseDate = currentExpiry > new Date() ? currentExpiry : new Date();
                 const newExpiry = new Date(baseDate);
-                newExpiry.setMonth(newExpiry.getMonth() + months);
+                newExpiry.setMonth(newExpiry.getMonth() + addonMonths);
                 newExpiryISO = newExpiry.toISOString();
               } else {
                 const newExpiry = new Date();
