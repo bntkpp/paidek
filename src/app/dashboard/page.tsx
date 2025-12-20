@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { BookOpen, Clock, TrendingUp, Download } from "lucide-react"
+import { BookOpen, Clock, TrendingUp, Download, Calendar, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -119,13 +119,30 @@ export default async function DashboardPage() {
                   </div>
                   <CardHeader className="flex-shrink-0">
                     <CardTitle className="line-clamp-2 min-h-[3.5rem]">{enrollment.courses?.title}</CardTitle>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Clock className="h-4 w-4" />
-                      <span>
-                        {enrollment.courses?.duration_hours
-                          ? `${enrollment.courses.duration_hours} horas`
-                          : "Duración no especificada"}
-                      </span>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="h-4 w-4" />
+                        <span>
+                          {enrollment.courses?.duration_hours
+                            ? `${enrollment.courses.duration_hours} horas`
+                            : "Duración no especificada"}
+                        </span>
+                      </div>
+                      {enrollment.expires_at && (
+                        <div className={`flex items-center gap-2 text-sm ${
+                          Math.ceil((new Date(enrollment.expires_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) <= 5 
+                            ? "text-amber-600 font-medium" 
+                            : "text-muted-foreground"
+                        }`}>
+                          {Math.ceil((new Date(enrollment.expires_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) <= 5 
+                            ? <AlertTriangle className="h-4 w-4" /> 
+                            : <Calendar className="h-4 w-4" />
+                          }
+                          <span>
+                            {Math.ceil((new Date(enrollment.expires_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} días restantes
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4 flex-1 flex flex-col justify-end">
