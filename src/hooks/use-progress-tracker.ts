@@ -5,14 +5,18 @@ import { createClient } from "@/lib/supabase/client"
 
 interface UseProgressTrackerOptions {
   userId: string
+  courseId: string
   lessons: { id: string }[]
   initialCompletedLessonIds: string[]
+  initialProgressPercentage?: number
 }
 
 export function useProgressTracker({
   userId,
+  courseId,
   lessons,
   initialCompletedLessonIds,
+  initialProgressPercentage,
 }: UseProgressTrackerOptions) {
   const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(new Set(initialCompletedLessonIds))
   const [isUpdating, setIsUpdating] = useState(false)
@@ -45,12 +49,23 @@ export function useProgressTracker({
       )
 
       if (!error) {
+        const newSize = completedLessonIds.size + 1
+        const newProgress = Math.round((newSize / totalLessons) * 100)
+
         setCompletedLessonIds((current) => new Set(current).add(lessonId))
+
+        await supabase
+          .from("enrollments")
+          .update({
+            progress_percentage: newProgress,
+            last_accessed_at: new Date().toISOString(),
+          })
+          .match({ user_id: userId, course_id: courseId })
       }
 
       setIsUpdating(false)
     },
-    [completedLessonIds, userId],
+    [completedLessonIds, userId, courseId, totalLessons],
   )
 
   useEffect(() => {
@@ -93,6 +108,27 @@ export function useProgressTracker({
     (lessonId: string) => completedLessonIds.has(lessonId),
     [completedLessonIds],
   )
+
+  useEffect(() => {
+    if (
+      initialProgressPercentage !== undefined &&
+      progress !== initialProgressPercentage &&
+      totalLessons > 0
+    ) {
+      const supabase = createClient()
+      supabase
+        .from("enrollments")
+        .update({
+          progress_percentage: progress,
+        })
+        .match({ user_id: userId, course_id: courseId })
+        .then(({ error }) => {
+          if (error) {
+            console.error("Error syncing progress:", error)
+          }
+        })
+    }
+  }, []) // Run only once on mount to sync if needed
 
   return {
     completedLessonIds,

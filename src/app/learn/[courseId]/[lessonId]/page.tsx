@@ -25,6 +25,8 @@ export default async function LessonPage({
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single()
   const isAdminPreview = preview === "true" && profile?.role === "admin"
 
+  let enrollmentProgress: number | undefined
+
   // Check if user is enrolled (skip for admin preview)
   if (!isAdminPreview) {
     const { data: enrollment } = await supabase
@@ -33,6 +35,10 @@ export default async function LessonPage({
       .eq("user_id", user.id)
       .eq("course_id", courseId)
       .single()
+
+    if (enrollment) {
+      enrollmentProgress = enrollment.progress_percentage
+    }
 
     if (!enrollment) {
       redirect("/courses")
@@ -124,7 +130,8 @@ export default async function LessonPage({
       return (a.order_index || 0) - (b.order_index || 0)
     }) || []
 
-  const completedLessonIds = progressData?.filter((record) => record.completed).map((record) => record.lesson_id) || []
+  const allLessonIds = new Set(allLessons.map((l: any) => l.id))
+  const completedLessonIds = progressData?.filter((record) => record.completed && allLessonIds.has(record.lesson_id)).map((record) => record.lesson_id) || []
   const progressPercentage = allLessons.length > 0 ? Math.round((completedLessonIds.length / allLessons.length) * 100) : 0
 
   // Check if current lesson is completed
@@ -180,6 +187,7 @@ export default async function LessonPage({
       nextLesson={nextLesson}
       modules={modulesWithLessons || []}
       progressPercentage={progressPercentage}
+      enrollmentProgress={enrollmentProgress}
       intakeForm={intakeForm}
     />
   )
