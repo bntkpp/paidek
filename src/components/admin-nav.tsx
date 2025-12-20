@@ -15,6 +15,7 @@ import {
   GraduationCap,
   FolderTree,
   FileText,
+  Activity,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/client"
@@ -29,6 +30,7 @@ const navItems = [
   { href: "/admin/intake-forms", label: "Fichas de Alumnos", icon: FileText },
   { href: "/admin/payments", label: "Pagos", icon: CreditCard },
   { href: "/admin/reviews", label: "Reseñas", icon: Star },
+  { href: "/admin/status", label: "Estado del Sistema", icon: Activity },
 ]
 
 export function AdminNav() {
