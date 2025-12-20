@@ -469,24 +469,37 @@ export function LessonContent({
                 SIGUIENTE →
               </Button>
             </div>
-            <Button
-              variant={isCompleted ? "outline" : "default"}
-              disabled={isMarking || isCompleted}
-              onClick={onMarkComplete}
-              size="sm"
-              className="w-full"
-            >
-              {isCompleted ? (
-                <>
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  COMPLETADA
-                </>
-              ) : isMarking ? (
-                "GUARDANDO..."
-              ) : (
-                "COMPLETAR LECCIÓN"
-              )}
-            </Button>
+            {!isIntakeForm && (
+              <Button
+                variant={isCompleted ? "outline" : "default"}
+                disabled={isMarking || isCompleted}
+                onClick={onMarkComplete}
+                size="sm"
+                className="w-full"
+              >
+                {isCompleted ? (
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    COMPLETADA
+                  </>
+                ) : isMarking ? (
+                  "GUARDANDO..."
+                ) : (
+                  "COMPLETAR LECCIÓN"
+                )}
+              </Button>
+            )}
+            {isIntakeForm && isCompleted && (
+              <Button
+                variant="outline"
+                disabled={true}
+                size="sm"
+                className="w-full"
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                COMPLETADA
+              </Button>
+            )}
           </div>
 
           {/* Versión desktop - Botones en línea */}
@@ -501,24 +514,37 @@ export function LessonContent({
               ← ANTERIOR
             </Button>
             
-            <Button
-              variant={isCompleted ? "outline" : "default"}
-              disabled={isMarking || isCompleted}
-              onClick={onMarkComplete}
-              size="lg"
-              className="min-w-[180px]"
-            >
-              {isCompleted ? (
-                <>
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  COMPLETADA
-                </>
-              ) : isMarking ? (
-                "GUARDANDO..."
-              ) : (
-                "COMPLETAR"
-              )}
-            </Button>
+            {!isIntakeForm && (
+              <Button
+                variant={isCompleted ? "outline" : "default"}
+                disabled={isMarking || isCompleted}
+                onClick={onMarkComplete}
+                size="lg"
+                className="min-w-[180px]"
+              >
+                {isCompleted ? (
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    COMPLETADA
+                  </>
+                ) : isMarking ? (
+                  "GUARDANDO..."
+                ) : (
+                  "COMPLETAR"
+                )}
+              </Button>
+            )}
+            {isIntakeForm && isCompleted && (
+              <Button
+                variant="outline"
+                disabled={true}
+                size="lg"
+                className="min-w-[180px]"
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                COMPLETADA
+              </Button>
+            )}
 
             <Button
               disabled={!nextLesson || (isIntakeForm && !isCompleted)}
