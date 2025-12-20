@@ -137,7 +137,13 @@ export function CourseLessonClient({
     markLessonComplete,
     isUpdating,
     isLessonCompleted,
-  } = useProgressTracker({ userId, lessons: flattenedLessons, initialCompletedLessonIds })
+  } = useProgressTracker({
+    userId,
+    courseId,
+    lessons: flattenedLessons,
+    initialCompletedLessonIds,
+    initialProgressPercentage,
+  })
 
   const currentLessonIndex = useMemo(
     () => flattenedLessons.findIndex((item) => item.id === lesson.id),

@@ -7,7 +7,7 @@ import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { completeLesson } from "@/app/learn/actions"
 
 interface LessonPageClientProps {
   courseId: string
@@ -39,35 +39,9 @@ export function LessonPageClient({
 
   const handleMarkComplete = async () => {
     setIsMarking(true)
-    const supabase = createClient()
 
     try {
-      // Check if progress record exists
-      const { data: existingProgress } = await supabase
-        .from("progress")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("lesson_id", lesson.id)
-        .maybeSingle()
-
-      if (existingProgress) {
-        // Update existing record
-        await supabase
-          .from("progress")
-          .update({ completed: true, completed_at: new Date().toISOString() })
-          .eq("user_id", userId)
-          .eq("lesson_id", lesson.id)
-      } else {
-        // Insert new record
-        await supabase.from("progress").insert({
-          user_id: userId,
-          lesson_id: lesson.id,
-          completed: true,
-          completed_at: new Date().toISOString(),
-        })
-      }
-
-      // Refresh the page
+      await completeLesson(courseId, lesson.id)
       router.refresh()
     } catch (error) {
       console.error("Error marking lesson as complete:", error)

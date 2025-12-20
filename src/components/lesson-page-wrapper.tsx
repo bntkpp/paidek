@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { CourseSidebar } from "@/components/course-sidebar"
 import { LessonPageClient } from "@/components/lesson-page-client"
 import { ChatbotWidget } from "@/components/chatbot-widget"
+import { syncProgress } from "@/app/learn/actions"
 
 interface LessonPageWrapperProps {
   courseId: string
@@ -17,6 +18,7 @@ interface LessonPageWrapperProps {
   nextLesson: { id: string; title: string } | null
   modules: any[]
   progressPercentage: number
+  enrollmentProgress?: number
   intakeForm?: any
 }
 
@@ -32,6 +34,15 @@ export function LessonPageWrapper(props: LessonPageWrapperProps) {
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  useEffect(() => {
+    if (
+      props.enrollmentProgress !== undefined &&
+      props.progressPercentage !== props.enrollmentProgress
+    ) {
+      syncProgress(props.courseId)
+    }
   }, [])
 
   return (
