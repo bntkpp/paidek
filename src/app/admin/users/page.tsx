@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { AdminLayout } from "@/components/admin-layout"
 import { AdminUsersManager } from "@/components/admin-users-manager"
 
@@ -22,19 +23,21 @@ export default async function AdminUsersPage() {
     redirect("/dashboard")
   }
 
+  const adminSupabase = createAdminClient()
+
   // Obtener todos los usuarios con sus estadísticas
-  const { data: users } = await supabase
+  const { data: users } = await adminSupabase
     .from("profiles")
     .select("*")
     .order("created_at", { ascending: false })
 
   // Obtener enrollments para contar inscripciones por usuario
-  const { data: enrollments } = await supabase
+  const { data: enrollments } = await adminSupabase
     .from("enrollments")
     .select("user_id, is_active")
 
   // Obtener pagos para contar pagos por usuario
-  const { data: payments } = await supabase
+  const { data: payments } = await adminSupabase
     .from("payments")
     .select("user_id, amount, status")
 
