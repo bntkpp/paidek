@@ -466,33 +466,58 @@ export default function CheckoutPage() {
 
                           {/* Plan Selector for Addon */}
                           {hasPlans && (
-                            <div className="mt-2">
-                              <Select
-                                value={selectedPlanId || ""}
-                                onValueChange={(value) => {
-                                  setSelectedAddonPlans(prev => ({
-                                    ...prev,
-                                    [addon.id]: value
-                                  }))
-                                  // Auto-select the addon if a plan is chosen
-                                  if (!isSelected) {
-                                    const newSet = new Set(selectedAddons)
-                                    newSet.add(addon.id)
-                                    setSelectedAddons(newSet)
-                                  }
-                                }}
-                              >
-                                <SelectTrigger className="w-full">
-                                  <SelectValue placeholder="Selecciona un plan" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {plans.map(plan => (
-                                    <SelectItem key={plan.id} value={plan.id}>
-                                      {plan.name || (plan.duration_months === 0 ? 'Acceso de por vida' : `Plan ${plan.duration_months} ${plan.duration_months === 1 ? 'Mes' : 'Meses'}`)} - ${plan.price.toLocaleString("es-CL")}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                            <div className="mt-4 space-y-3">
+                              {plans.map(plan => {
+                                const isPlanSelected = selectedPlanId === plan.id
+                                const monthlyRate = plan.duration_months > 0 ? plan.price / plan.duration_months : 0
+                                
+                                return (
+                                  <button
+                                    key={plan.id}
+                                    onClick={() => {
+                                      setSelectedAddonPlans(prev => ({
+                                        ...prev,
+                                        [addon.id]: plan.id
+                                      }))
+                                      // Auto-select the addon if a plan is chosen
+                                      if (!isSelected) {
+                                        const newSet = new Set(selectedAddons)
+                                        newSet.add(addon.id)
+                                        setSelectedAddons(newSet)
+                                      }
+                                    }}
+                                    className={`w-full p-3 rounded-lg border-2 transition-all text-left relative ${isPlanSelected
+                                        ? "border-purple-500 bg-purple-50 dark:bg-purple-900/20"
+                                        : "border-border hover:border-purple-200 dark:hover:border-purple-800"
+                                      }`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <p className="font-semibold text-sm">
+                                          {plan.name || (plan.duration_months === 0 ? 'Acceso de por vida' : `Plan ${plan.duration_months} ${plan.duration_months === 1 ? 'Mes' : 'Meses'}`)}
+                                        </p>
+                                        {plan.description ? (
+                                          <p className="text-xs text-muted-foreground">{plan.description}</p>
+                                        ) : (
+                                          <p className="text-xs text-muted-foreground">
+                                            {plan.duration_months === 0 
+                                              ? 'Pago único' 
+                                              : plan.duration_months === 1 
+                                                ? 'Renovación mensual' 
+                                                : `$${Math.round(monthlyRate).toLocaleString("es-CL")}/mes`}
+                                          </p>
+                                        )}
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="font-bold text-purple-600">${plan.price.toLocaleString("es-CL")}</p>
+                                        <p className="text-[10px] text-muted-foreground">
+                                          {plan.duration_months === 1 ? '/mes' : 'Pago único'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </button>
+                                )
+                              })}
                             </div>
                           )}
 
