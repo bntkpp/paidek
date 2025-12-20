@@ -11,6 +11,13 @@ import { Badge } from "@/components/ui/badge"
 import { CheckCircle2, CreditCard, TrendingUp, FileQuestion, Package } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 interface SubscriptionPlan {
   id: string
@@ -44,6 +51,8 @@ export default function CheckoutPage() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([])
   const [availableAddons, setAvailableAddons] = useState<CourseAddon[]>([])
   const [selectedAddons, setSelectedAddons] = useState<Set<string>>(new Set())
+  const [addonPlans, setAddonPlans] = useState<Record<string, SubscriptionPlan[]>>({})
+  const [selectedAddonPlans, setSelectedAddonPlans] = useState<Record<string, string>>({})
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -162,6 +171,28 @@ export default function CheckoutPage() {
 
       if (addonsData) {
         setAvailableAddons(addonsData as any)
+
+        // Fetch plans for addons
+        const addonCourseIds = addonsData.map(a => a.addon_course_id)
+        if (addonCourseIds.length > 0) {
+          const { data: addonPlansData } = await supabase
+            .from("subscription_plans")
+            .select("*")
+            .in("course_id", addonCourseIds)
+            .eq("is_active", true)
+            .order("display_order", { ascending: true })
+          
+          if (addonPlansData) {
+            const plansByCourse: Record<string, SubscriptionPlan[]> = {}
+            addonPlansData.forEach(plan => {
+              if (!plansByCourse[plan.course_id]) {
+                plansByCourse[plan.course_id] = []
+              }
+              plansByCourse[plan.course_id].push(plan)
+            })
+            setAddonPlans(plansByCourse)
+          }
+        }
       }
 
       setCourse(courseData)
@@ -175,6 +206,25 @@ export default function CheckoutPage() {
   }, [params.courseId, router, selectedPlanId])
 
   const selectedPlan = plans.find(p => p.id === selectedPlanId)
+
+  // Calculate totals
+  const addonsTotal = Array.from(selectedAddons).reduce((total, addonId) => {
+    const addon = availableAddons.find(a => a.id === addonId)
+    if (!addon) return total
+    
+    // Check for selected plan
+    const selectedPlanId = selectedAddonPlans[addonId]
+    const plans = addon.addon_course_id ? addonPlans[addon.addon_course_id] : []
+    const selectedPlan = plans?.find(p => p.id === selectedPlanId)
+    
+    const addonPrice = selectedPlan 
+        ? selectedPlan.price 
+        : (addon.price ?? addon.addon_course?.one_time_price ?? 0)
+        
+    return total + addonPrice
+  }, 0)
+
+  const totalPrice = (selectedPlan?.price || 0) + addonsTotal
 
   const calculateSavings = (plan: SubscriptionPlan) => {
     if (plan.duration_months === 0) return null
@@ -198,24 +248,26 @@ export default function CheckoutPage() {
     setIsProcessing(true)
 
     try {
-      // Calcular precio total de add-ons seleccionados
-      const addonsTotal = Array.from(selectedAddons).reduce((total, addonId) => {
-        const addon = availableAddons.find(a => a.id === addonId)
-        const addonPrice = addon?.price ?? addon?.addon_course?.one_time_price ?? 0
-        return total + addonPrice
-      }, 0)
-
-      const totalPrice = selectedPlan.price + addonsTotal
-
       // Preparar lista de add-ons seleccionados
       const selectedAddonsList = Array.from(selectedAddons).map(addonId => {
         const addon = availableAddons.find(a => a.id === addonId)
-        const addonPrice = addon?.price ?? addon?.addon_course?.one_time_price ?? 0
+        
+        // Check for selected plan
+        const selectedPlanId = selectedAddonPlans[addonId]
+        const plans = addon?.addon_course_id ? addonPlans[addon.addon_course_id] : []
+        const selectedPlan = plans?.find(p => p.id === selectedPlanId)
+        
+        const addonPrice = selectedPlan 
+            ? selectedPlan.price 
+            : (addon?.price ?? addon?.addon_course?.one_time_price ?? 0)
+            
         return {
           addonId: addon?.id,
           courseId: addon?.addon_course?.id,
           title: addon?.addon_course?.title,
-          price: addonPrice
+          price: addonPrice,
+          planId: selectedPlan?.id,
+          months: selectedPlan?.duration_months
         }
       })
 
@@ -278,15 +330,6 @@ export default function CheckoutPage() {
   }
 
   const currentSavings = calculateSavings(selectedPlan)
-  
-  // Calcular total de add-ons seleccionados
-  const addonsTotal = Array.from(selectedAddons).reduce((total, addonId) => {
-    const addon = availableAddons.find(a => a.id === addonId)
-    const addonPrice = addon?.price ?? addon?.addon_course?.one_time_price ?? 0
-    return total + addonPrice
-  }, 0)
-  
-  const totalPrice = selectedPlan.price + addonsTotal
 
   return (
     <main className="min-h-screen flex flex-col">
@@ -382,7 +425,18 @@ export default function CheckoutPage() {
 
               {/* Complementos opcionales (Add-ons) */}
               {availableAddons.length > 0 && availableAddons.map(addon => {
-                const addonPrice = addon.price ?? addon.addon_course?.one_time_price ?? 0
+                const plans = addonPlans[addon.addon_course_id] || []
+                const hasPlans = plans.length > 0
+                
+                // Determine selected plan for this addon
+                const selectedPlanId = selectedAddonPlans[addon.id]
+                const selectedPlan = hasPlans ? plans.find(p => p.id === selectedPlanId) : null
+                
+                // Calculate price: use selected plan price if available, otherwise fallback to fixed price
+                const addonPrice = selectedPlan 
+                  ? selectedPlan.price 
+                  : (addon.price ?? addon.addon_course?.one_time_price ?? 0)
+                  
                 const isSelected = selectedAddons.has(addon.id)
                 
                 return (
@@ -410,6 +464,38 @@ export default function CheckoutPage() {
                             </p>
                           </div>
 
+                          {/* Plan Selector for Addon */}
+                          {hasPlans && (
+                            <div className="mt-2">
+                              <Select
+                                value={selectedPlanId || ""}
+                                onValueChange={(value) => {
+                                  setSelectedAddonPlans(prev => ({
+                                    ...prev,
+                                    [addon.id]: value
+                                  }))
+                                  // Auto-select the addon if a plan is chosen
+                                  if (!isSelected) {
+                                    const newSet = new Set(selectedAddons)
+                                    newSet.add(addon.id)
+                                    setSelectedAddons(newSet)
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Selecciona un plan" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {plans.map(plan => (
+                                    <SelectItem key={plan.id} value={plan.id}>
+                                      {plan.name || (plan.duration_months === 0 ? 'Acceso de por vida' : `Plan ${plan.duration_months} ${plan.duration_months === 1 ? 'Mes' : 'Meses'}`)} - ${plan.price.toLocaleString("es-CL")}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+
                           {/* Call to action */}
                           <div className="flex items-center justify-between pt-2">
                             <div className="flex items-center gap-3">
@@ -420,6 +506,13 @@ export default function CheckoutPage() {
                                   const newSet = new Set(selectedAddons)
                                   if (checked) {
                                     newSet.add(addon.id)
+                                    // If has plans and none selected, select the first one
+                                    if (hasPlans && !selectedPlanId && plans.length > 0) {
+                                        setSelectedAddonPlans(prev => ({
+                                            ...prev,
+                                            [addon.id]: plans[0].id
+                                        }))
+                                    }
                                   } else {
                                     newSet.delete(addon.id)
                                   }
@@ -434,9 +527,20 @@ export default function CheckoutPage() {
                               </Label>
                             </div>
                             <div className="text-right">
-                              <p className="text-2xl font-bold text-purple-600">
-                                +${addonPrice.toLocaleString("es-CL")}
-                              </p>
+                              {hasPlans && !selectedPlan ? (
+                                <p className="text-sm font-medium text-muted-foreground">
+                                  Selecciona un plan
+                                </p>
+                              ) : (
+                                <p className="text-2xl font-bold text-purple-600">
+                                  +${addonPrice.toLocaleString("es-CL")}
+                                </p>
+                              )}
+                              {selectedPlan && (
+                                <p className="text-xs text-muted-foreground">
+                                  {selectedPlan.duration_months === 1 ? '/mes' : 'Pago único'}
+                                </p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -530,10 +634,26 @@ export default function CheckoutPage() {
                     {Array.from(selectedAddons).map(addonId => {
                       const addon = availableAddons.find(a => a.id === addonId)
                       if (!addon) return null
-                      const price = addon.price ?? addon.addon_course?.one_time_price ?? 0
+                      
+                      // Check for selected plan
+                      const selectedPlanId = selectedAddonPlans[addonId]
+                      const plans = addon.addon_course_id ? addonPlans[addon.addon_course_id] : []
+                      const selectedPlan = plans?.find(p => p.id === selectedPlanId)
+                      
+                      const price = selectedPlan 
+                          ? selectedPlan.price 
+                          : (addon.price ?? addon.addon_course?.one_time_price ?? 0)
+
                       return (
                         <div key={addonId} className="flex items-center justify-between text-sm bg-purple-50 dark:bg-purple-900/20 px-3 py-2 rounded-lg border border-purple-200 dark:border-purple-800">
-                          <span className="text-purple-700 dark:text-purple-300 font-medium">✓ {addon.addon_course?.title}</span>
+                          <div className="flex flex-col">
+                              <span className="text-purple-700 dark:text-purple-300 font-medium">✓ {addon.addon_course?.title}</span>
+                              {selectedPlan && (
+                                  <span className="text-xs text-purple-600 dark:text-purple-400">
+                                      {selectedPlan.name || (selectedPlan.duration_months === 0 ? 'Acceso de por vida' : `Plan ${selectedPlan.duration_months} ${selectedPlan.duration_months === 1 ? 'Mes' : 'Meses'}`)}
+                                  </span>
+                              )}
+                          </div>
                           <span className="font-bold text-purple-700 dark:text-purple-300">${price.toLocaleString("es-CL")}</span>
                         </div>
                       )

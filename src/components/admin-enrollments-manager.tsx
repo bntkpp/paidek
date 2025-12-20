@@ -346,6 +346,8 @@ function CreateEnrollmentDialog({
   const [selectedUser, setSelectedUser] = useState("")
   const [selectedCourse, setSelectedCourse] = useState("")
   const [planType, setPlanType] = useState("4_months")
+  const [customValue, setCustomValue] = useState(1)
+  const [customUnit, setCustomUnit] = useState("months")
   const { toast } = useToast()
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -372,6 +374,21 @@ function CreateEnrollmentDialog({
         // Modo de prueba: agregar minutos en lugar de meses
         const minutes = parseInt(formData.get("test_minutes") as string) || 1
         now.setTime(now.getTime() + minutes * 60 * 1000)
+      } else if (planType === "custom") {
+        const value = parseInt(formData.get("custom_value") as string) || 1
+        const unit = formData.get("custom_unit") as string
+        
+        switch (unit) {
+          case "hours":
+            now.setTime(now.getTime() + value * 60 * 60 * 1000)
+            break
+          case "days":
+            now.setDate(now.getDate() + value)
+            break
+          case "months":
+            now.setMonth(now.getMonth() + value)
+            break
+        }
       } else {
         switch (planType) {
           case "1_month":
@@ -400,16 +417,24 @@ function CreateEnrollmentDialog({
     try {
       const enrollment = await createEnrollment(payload)
       onCreated(enrollment)
+      
+      let description = "La inscripción se creó correctamente."
+      if (planType === "test_minutes") {
+        description = `Inscripción de prueba creada (expira en ${formData.get("test_minutes")} minutos)`
+      } else if (planType === "custom") {
+        description = `Inscripción personalizada creada (${customValue} ${customUnit})`
+      }
+
       toast({
         title: "Inscripción creada",
-        description: planType === "test_minutes"
-          ? `Inscripción de prueba creada (expira en ${formData.get("test_minutes")} minutos)`
-          : "La inscripción se creó correctamente.",
+        description,
       })
       setIsOpen(false)
       setSelectedUser("")
       setSelectedCourse("")
       setPlanType("4_months")
+      setCustomValue(1)
+      setCustomUnit("months")
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -476,6 +501,7 @@ function CreateEnrollmentDialog({
               <SelectContent>
                 <SelectItem value="none">Sin plan</SelectItem>
                 <SelectItem value="lifetime">De por vida</SelectItem>
+                <SelectItem value="custom">Personalizado (Flexible)</SelectItem>
                 <SelectItem value="test_minutes">🧪 Prueba (minutos)</SelectItem>
                 <SelectItem value="1_month">1 Mes</SelectItem>
                 <SelectItem value="4_months">4 Meses</SelectItem>
@@ -483,6 +509,36 @@ function CreateEnrollmentDialog({
               </SelectContent>
             </Select>
           </div>
+
+          {planType === "custom" && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="custom_value">Duración</Label>
+                <Input
+                  id="custom_value"
+                  name="custom_value"
+                  type="number"
+                  min="1"
+                  value={customValue}
+                  onChange={(e) => setCustomValue(parseInt(e.target.value) || 1)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="custom_unit">Unidad</Label>
+                <Select name="custom_unit" value={customUnit} onValueChange={setCustomUnit}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hours">Horas</SelectItem>
+                    <SelectItem value="days">Días</SelectItem>
+                    <SelectItem value="months">Meses</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
 
           {planType === "test_minutes" && (
             <div className="space-y-2">
@@ -536,6 +592,9 @@ function EditEnrollmentDialog({
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [planType, setPlanType] = useState(enrollment.plan_type || "none")
+  const [customValue, setCustomValue] = useState(1)
+  const [customUnit, setCustomUnit] = useState("months")
   const { toast } = useToast()
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -543,22 +602,42 @@ function EditEnrollmentDialog({
     setIsSaving(true)
 
     const formData = new FormData(event.currentTarget)
-    const planType = formData.get("plan_type") as string
+    // planType ya está en el state
 
-    // Calcular nueva fecha de expiración si cambió el tipo
+    // Calcular nueva fecha de expiración si cambió el tipo o es custom
     let expiresAt = enrollment.expires_at
-    if (planType && planType !== "none" && planType !== enrollment.plan_type) {
+    
+    // Si cambiamos el plan, recalculamos desde AHORA
+    if (planType && planType !== "none" && (planType !== enrollment.plan_type || planType === "custom")) {
       const now = new Date()
-      switch (planType) {
-        case "1_month":
-          now.setMonth(now.getMonth() + 1)
-          break
-        case "4_months":
-          now.setMonth(now.getMonth() + 4)
-          break
-        case "8_months":
-          now.setMonth(now.getMonth() + 8)
-          break
+      
+      if (planType === "custom") {
+        const value = parseInt(formData.get("custom_value") as string) || 1
+        const unit = formData.get("custom_unit") as string
+        
+        switch (unit) {
+          case "hours":
+            now.setTime(now.getTime() + value * 60 * 60 * 1000)
+            break
+          case "days":
+            now.setDate(now.getDate() + value)
+            break
+          case "months":
+            now.setMonth(now.getMonth() + value)
+            break
+        }
+      } else {
+        switch (planType) {
+          case "1_month":
+            now.setMonth(now.getMonth() + 1)
+            break
+          case "4_months":
+            now.setMonth(now.getMonth() + 4)
+            break
+          case "8_months":
+            now.setMonth(now.getMonth() + 8)
+            break
+        }
       }
       expiresAt = now.toISOString()
     } else if (planType === "none") {
@@ -609,19 +688,51 @@ function EditEnrollmentDialog({
             <Label htmlFor="plan_type">Tipo de Plan</Label>
             <Select
               name="plan_type"
-              defaultValue={enrollment.plan_type || "none"}
+              value={planType}
+              onValueChange={setPlanType}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Sin plan</SelectItem>
+                <SelectItem value="custom">Personalizado (Flexible)</SelectItem>
                 <SelectItem value="1_month">1 Mes</SelectItem>
                 <SelectItem value="4_months">4 Meses</SelectItem>
                 <SelectItem value="8_months">8 Meses</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {planType === "custom" && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="custom_value">Duración</Label>
+                <Input
+                  id="custom_value"
+                  name="custom_value"
+                  type="number"
+                  min="1"
+                  value={customValue}
+                  onChange={(e) => setCustomValue(parseInt(e.target.value) || 1)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="custom_unit">Unidad</Label>
+                <Select name="custom_unit" value={customUnit} onValueChange={setCustomUnit}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hours">Horas</SelectItem>
+                    <SelectItem value="days">Días</SelectItem>
+                    <SelectItem value="months">Meses</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center space-x-2">
             <Switch
