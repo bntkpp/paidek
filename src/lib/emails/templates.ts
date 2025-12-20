@@ -345,3 +345,134 @@ export function getPurchaseConfirmationTemplate({
 </html>
   `.trim()
 }
+
+interface SubscriptionExpiringParams {
+  userName: string
+  courseTitle: string
+  courseId: string
+  daysLeft: number
+  expiresAt: string
+}
+
+export function getSubscriptionExpiringTemplate({ userName, courseTitle, courseId, daysLeft, expiresAt }: SubscriptionExpiringParams): string {
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+  const renewUrl = `${baseUrl}/checkout/${courseId}`
+  
+  return `
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tu suscripción está por vencer</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background-color: #f4f4f5;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .header {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      padding: 40px 20px;
+      text-align: center;
+      color: white;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 700;
+    }
+    .content {
+      padding: 40px 30px;
+    }
+    .content h2 {
+      color: #18181b;
+      font-size: 24px;
+      margin-top: 0;
+    }
+    .content p {
+      color: #52525b;
+      font-size: 16px;
+      margin: 16px 0;
+    }
+    .button {
+      display: inline-block;
+      padding: 14px 32px;
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+      margin: 24px 0;
+      transition: transform 0.2s;
+    }
+    .button:hover {
+      transform: translateY(-2px);
+    }
+    .info-box {
+      background-color: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      padding: 16px;
+      margin: 24px 0;
+      border-radius: 4px;
+    }
+    .footer {
+      background-color: #fafafa;
+      padding: 30px;
+      text-align: center;
+      font-size: 14px;
+      color: #71717a;
+    }
+    .footer a {
+      color: #f59e0b;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>⚠️ Tu suscripción vence pronto</h1>
+    </div>
+    <div class="content">
+      <h2>Hola ${userName},</h2>
+      <p>Te escribimos para recordarte que tu acceso al curso <strong>${courseTitle}</strong> está próximo a finalizar.</p>
+      
+      <div class="info-box">
+        <p style="margin: 0; font-weight: 600;">
+          Tiempo restante: ${daysLeft} días
+        </p>
+        <p style="margin: 8px 0 0 0; font-size: 14px;">
+          Fecha de expiración: ${new Date(expiresAt).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+        </p>
+      </div>
+
+      <p>No pierdas tu progreso y continúa aprendiendo sin interrupciones. Puedes renovar tu suscripción ahora mismo.</p>
+
+      <center>
+        <a href="${renewUrl}" class="button">Renovar Suscripción 🔄</a>
+      </center>
+    </div>
+    <div class="footer">
+      <p>Si ya renovaste tu suscripción, por favor ignora este mensaje.</p>
+      <p style="margin-top: 16px;">¿Necesitas ayuda? Escríbenos a <a href="mailto:hola@institutopaidek.com">hola@institutopaidek.com</a></p>
+      <p style="margin-top: 16px;">
+        © ${new Date().getFullYear()} Paidek. Todos los derechos reservados.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim()
+}
