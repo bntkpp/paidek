@@ -92,7 +92,7 @@ Ayuda a los estudiantes con:
 Usa formato markdown para mejorar la presentación. Sé amigable y profesional. Responde siempre en español.`
 
     const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash", // Cambiar a modelo estable con mejor cuota
+      model: "gemini-3-flash-preview", 
       systemInstruction: systemPrompt,
     })
 

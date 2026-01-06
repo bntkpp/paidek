@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { MessageCircle, X, Send } from "lucide-react";
+import { MessageCircle, X, Send, Bot } from "lucide-react";
 import { MarkdownMessage } from "@/components/markdown-message";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface ChatbotWidgetProps {
   courseId?: string;
@@ -153,19 +154,34 @@ export function ChatbotWidget({ courseId, courseName, isOpen: externalIsOpen, on
         </Button>
       </CardHeader>
 
-      <CardContent className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-muted/20 to-background">
+      <CardContent className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-muted/20 to-background">
         {messages.length === 0 && (
-          <div className="flex justify-start">
-            <div className="bg-muted/80 backdrop-blur-sm rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm max-w-[85%]">
+          <div className="flex justify-start gap-3">
+            <Avatar className="h-8 w-8 mt-1">
+              <AvatarImage src="/bot-avatar.png" />
+              <AvatarFallback className="bg-primary/10">
+                <Bot className="h-4 w-4 text-primary" />
+              </AvatarFallback>
+            </Avatar>
+            <div className="bg-muted/80 backdrop-blur-sm rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm max-w-[80%]">
               <p>¡Hola! ¿En qué puedo ayudarte hoy?</p>
             </div>
           </div>
         )}
 
         {messages.map((msg) => (
-          <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+          <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start gap-3"}`}>
+            {msg.role === "assistant" && (
+              <Avatar className="h-8 w-8 mt-1 flex-shrink-0">
+                <AvatarImage src="/bot-avatar.png" />
+                <AvatarFallback className="bg-primary/10">
+                  <Bot className="h-4 w-4 text-primary" />
+                </AvatarFallback>
+              </Avatar>
+            )}
+            
             {msg.role === "assistant" ? (
-              <div className="bg-muted/80 backdrop-blur-sm rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm max-w-[85%]">
+              <div className="bg-muted/80 backdrop-blur-sm rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm max-w-[80%]">
                 <MarkdownMessage content={msg.content} />
               </div>
             ) : (
@@ -177,7 +193,13 @@ export function ChatbotWidget({ courseId, courseName, isOpen: externalIsOpen, on
         ))}
 
         {isLoading && (
-          <div className="flex justify-start">
+          <div className="flex justify-start gap-3">
+            <Avatar className="h-8 w-8 mt-1">
+              <AvatarImage src="/bot-avatar.png" />
+              <AvatarFallback className="bg-primary/10">
+                <Bot className="h-4 w-4 text-primary" />
+              </AvatarFallback>
+            </Avatar>
             <div className="bg-muted/80 backdrop-blur-sm rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
               <div className="flex gap-1.5">
                 <div className="w-2 h-2 bg-foreground/40 rounded-full animate-bounce" />
