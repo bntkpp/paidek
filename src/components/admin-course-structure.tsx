@@ -467,14 +467,26 @@ export function AdminCourseStructure({ courses }: AdminCourseStructureProps) {
                             return
                           }
 
-                          const draggedModuleData = sortedModules[draggedModule.currentIndex]
+                          // Reordenar por inserción en lugar de intercambio
+                          const newModules = [...sortedModules]
+                          const [movedModule] = newModules.splice(draggedModule.currentIndex, 1)
+                          newModules.splice(moduleIndex, 0, movedModule)
+
+                          // Calcular nuevos índices para todos los elementos afectados
+                          const updates = newModules.map((m, idx) => ({
+                            id: m.id,
+                            order_index: idx + 1
+                          }))
+
+                          // Filtrar solo los que necesitan actualización
+                          const changes = updates.filter(u => {
+                            const original = sortedModules.find(om => om.id === u.id)
+                            return original?.order_index !== u.order_index
+                          })
                           
-                          // Intercambiar índices
-                          const tempOrder = module.order_index
-                          await reorderItems('modules', [
-                            { id: draggedModuleData.id, order_index: tempOrder },
-                            { id: module.id, order_index: draggedModuleData.order_index }
-                          ], 'Módulo reordenado correctamente')
+                          if (changes.length > 0) {
+                            await reorderItems('modules', changes, 'Módulo reordenado correctamente')
+                          }
 
                           setDraggedModule(null)
                         }
@@ -569,19 +581,25 @@ export function AdminCourseStructure({ courses }: AdminCourseStructureProps) {
                                       return
                                     }
                                     
-                                    const supabase = createClient()
-                                    const draggedLessonData = sortedLessons[draggedLesson.currentIndex]
-                                    const targetIndex = index
+                                    // Reordenar por inserción en lugar de intercambio
+                                    const newLessons = [...sortedLessons]
+                                    const [movedLesson] = newLessons.splice(draggedLesson.currentIndex, 1)
+                                    newLessons.splice(index, 0, movedLesson)
+
+                                    // Calcular nuevos índices
+                                    const updates = newLessons.map((l, idx) => ({
+                                      id: l.id,
+                                      order_index: idx + 1
+                                    }))
+
+                                    // Filtrar cambios
+                                    const changes = updates.filter(u => {
+                                      const original = sortedLessons.find(sl => sl.id === u.id)
+                                      return original?.order_index !== u.order_index
+                                    })
                                     
-                                    try {
-                                      // Intercambiar order_index
-                                      await supabase.from("lessons").update({ order_index: lesson.order_index }).eq("id", draggedLessonData.id)
-                                      await supabase.from("lessons").update({ order_index: draggedLessonData.order_index }).eq("id", lesson.id)
-                                      
-                                      toast({ description: "Lección reordenada correctamente" })
-                                      router.refresh()
-                                    } catch (error) {
-                                      toast({ variant: "destructive", description: "Error al reordenar la lección" })
+                                    if (changes.length > 0) {
+                                      await reorderItems('lessons', changes, "Lección reordenada correctamente")
                                     }
                                     
                                     setDraggedLesson(null)

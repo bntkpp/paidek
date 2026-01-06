@@ -209,11 +209,6 @@ function CourseCard({
             />
           )}
 
-          <ManageAddonsDialog
-            courseId={course.id}
-            courseTitle={course.title}
-          />
-
           <div className="space-y-2 pt-2 border-t">
             {course.payment_type === "one_time" && course.one_time_price && (
               <div className="flex items-center gap-2 text-sm">
