@@ -18,7 +18,6 @@ interface Review {
   profiles: {
     full_name: string | null
     email: string | null
-    avatar_url: string | null
   } | null
 }
 
@@ -44,18 +43,21 @@ export function CourseReviews({ courseId, userId, isEnrolled }: CourseReviewsPro
       const { data, error } = await supabase
         .from("reviews")
         .select(`
-          *,
-          profiles (
+          id,
+          rating,
+          comment,
+          created_at,
+          user_id,
+          profiles:reviews_user_id_fkey (
             full_name,
-            email,
-            avatar_url
+            email
           )
         `)
         .eq("course_id", courseId)
         .order("created_at", { ascending: false })
 
       if (error) {
-        console.error("Error fetching reviews:", error)
+        console.error("Error fetching reviews:", JSON.stringify(error, null, 2))
       } else {
         setReviews(data as any[] || []) // Cast needed due to complex join types
       }
@@ -184,7 +186,6 @@ export function CourseReviews({ courseId, userId, isEnrolled }: CourseReviewsPro
                 <CardContent className="pt-6">
                   <div className="flex items-start gap-4">
                     <Avatar>
-                       <AvatarImage src={review.profiles?.avatar_url || ""} />
                       <AvatarFallback>
                         {(review.profiles?.full_name || "U").charAt(0).toUpperCase()}
                       </AvatarFallback>

@@ -8,6 +8,7 @@ import { Clock, BookOpen, Award, CheckCircle2, TrendingUp, Home, Brain, Target, 
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
+import { CourseReviews } from "@/components/course-reviews"
 
 const levelLabels: Record<string, string> = {
   beginner: "Principiante",
@@ -510,6 +511,20 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
             </div>
           </section>
         )}
+
+        {/* Reseñas del curso */}
+        <section className="py-12 relative overflow-hidden">
+          {/* Fondo sutil para separar */}
+          <div className="absolute inset-0 bg-muted/10" />
+          <div className="container mx-auto px-4 relative">
+             <CourseReviews 
+               courseId={id} 
+               userId={user?.id}
+               isEnrolled={isEnrolled}
+             />
+          </div>
+        </section>
+
       </div>
       <Footer />
     </main>

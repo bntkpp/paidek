@@ -24,7 +24,11 @@ export default async function AdminReviewsPage() {
   // Get all reviews
   const { data: reviews } = await supabase
     .from("reviews")
-    .select("*, profiles(full_name, email), courses(title)")
+    .select(`
+      *,
+      profiles:reviews_user_id_fkey (full_name, email),
+      courses:reviews_course_id_fkey (title)
+    `)
     .order("created_at", { ascending: false })
 
   return (
