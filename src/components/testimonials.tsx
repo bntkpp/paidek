@@ -6,22 +6,22 @@ import { motion } from "framer-motion"
 
 const testimonials = [
   {
-    name: "María González",
+    name: "Ilmary",
     role: "Estudiante",
     content:
-      "Gracias a Paidek pude aprobar todas mis materias pendientes. El material es excelente y los profesores muy atentos.",
+      "Agradezco por el tiempo y la enseñanza brindada, el entusiasmo y la dedicación del profesor por educar ha hecho que sea entretenido, explica de manera clara y concisa y recibi conformemente todo el material brindado.",
     rating: 5,
   },
   {
-    name: "Juan Pérez",
+    name: "Diego Andrades",
     role: "Estudiante",
-    content: "La plataforma es muy fácil de usar y el contenido está muy bien explicado. Totalmente recomendable.",
+    content: "Todo excelente y agradable proceso para estudiar, recomendado.",
     rating: 5,
   },
   {
-    name: "Laura Martínez",
+    name: "Myrtha Fevrier",
     role: "Estudiante",
-    content: "Excelente experiencia. Pude estudiar a mi ritmo y aprobar con muy buenas notas. Muy satisfecha.",
+    content: "Recomiendo esta pagina y en especial al profesor por su paciencia, su forma de enseñarme, transmitir el conocimiento y confiar en mi, pude rendir una buena prueba de mi cuardo medio laboral.",
     rating: 5,
   },
 ]
