@@ -7,7 +7,7 @@ import { motion } from "framer-motion"
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-background via-background to-muted/30 py-20 md:py-32">
+    <section className="relative overflow-hidden bg-gradient-to-b from-background via-background to-muted/30 py-8 md:py-16">
       {/* Efectos de fondo */}
       <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:50px_50px]" />
       <div className="absolute top-1/4 -left-48 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
@@ -74,7 +74,7 @@ export function Hero() {
               transition={{ delay: 0.6, duration: 0.6 }}
             >
               <div className="flex flex-col gap-1">
-                <span className="text-2xl font-bold text-foreground">+30</span>
+                <span className="text-2xl font-bold text-foreground">+50</span>
                 <span>Estudiantes</span>
               </div>
               <div className="flex flex-col gap-1">
