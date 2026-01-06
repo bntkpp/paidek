@@ -105,7 +105,7 @@ export default function CoursesPage() {
     <main className="min-h-screen flex flex-col">
       <Navbar />
       <div className="flex-1">
-        <section className="py-16 bg-gradient-to-b from-background via-muted/30 to-background relative overflow-hidden">
+        <section className="pt-16 pb-6 bg-gradient-to-b from-background via-muted/30 to-background relative overflow-hidden">
           {/* Decoración de fondo */}
           <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:50px_50px]" />
           <div className="absolute top-0 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
@@ -148,7 +148,7 @@ export default function CoursesPage() {
           </div>
         </section>
 
-        <section className="py-12 relative">
+        <section className="pt-2 pb-12 relative">
           <div className="container mx-auto px-4">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
