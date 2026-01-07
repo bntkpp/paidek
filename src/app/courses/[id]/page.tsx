@@ -9,6 +9,7 @@ import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { CourseReviews } from "@/components/course-reviews"
+import { sendMetaEvent } from "@/lib/meta-conversions"
 
 const levelLabels: Record<string, string> = {
   beginner: "Principiante",
@@ -86,6 +87,21 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
   const cheapestMonthlyRate = subscriptionPlans && subscriptionPlans.length > 0
     ? Math.min(...subscriptionPlans.map(p => p.price / p.duration_months))
     : 0
+
+  // Send ViewContent event to Meta CAPI
+  await sendMetaEvent(
+    "ViewContent",
+    {
+      external_id: user?.id,
+    },
+    {
+      content_name: course.title,
+      content_ids: [course.id],
+      content_type: "product",
+      value: isOneTimePayment ? (course.one_time_price || 0) : (subscriptionPlans?.[0]?.price || 0),
+      currency: "CLP",
+    }
+  )
 
   return (
     <main className="min-h-screen flex flex-col">

@@ -47,6 +47,7 @@ export default function CoursesPage() {
         .from("courses")
         .select("*")
         .eq("published", true)
+        .order("position", { ascending: true })
         .order("created_at", { ascending: false })
 
       if (error) {
