@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { CheckCircle, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
+import { trackPurchase } from "../actions"
 
 export default function PaymentSuccessPage() {
   const router = useRouter()
@@ -65,6 +66,10 @@ export default function PaymentSuccessPage() {
           status: "completed",
           payment_method: "mercadopago",
         })
+
+        // Track Purchase Event server-side
+        const price = course.price ?? course.one_time_price ?? 0
+        await trackPurchase(user.id, course.id, course.title, Number(price))
       }
 
       setIsProcessing(false)
