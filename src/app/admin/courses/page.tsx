@@ -16,6 +16,7 @@ export default async function AdminCoursesPage() {
     const { data: courses, error } = await supabase
       .from("courses")
       .select("*")
+      .order("position", { ascending: true })
       .order("created_at", { ascending: false })
 
     if (error) {
