@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { MercadoPagoConfig, Preference } from "mercadopago"
+import { sendMetaEvent } from "@/lib/meta-conversions"
 
 const planLabels: Record<string, string> = {
   "1_month": "Plan Mensual",
@@ -148,6 +149,22 @@ export async function POST(request: NextRequest) {
     })
 
     console.log("Preference created:", response.id)
+
+    // Send InitiateCheckout event to Meta
+    try {
+      await sendMetaEvent("InitiateCheckout", {
+        external_id: userId,
+      }, {
+        content_ids: items.map((item: any) => item.id),
+        content_name: items.map((item: any) => item.title).join(", "),
+        content_type: "product",
+        currency: "CLP",
+        value: Number(totalPrice),
+        num_items: items.length
+      })
+    } catch (e) {
+      console.error("Failed to send Meta InitiateCheckout event", e)
+    }
 
     return NextResponse.json({
       preferenceId: response.id,
