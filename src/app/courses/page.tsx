@@ -1,26 +1,12 @@
-"use client"
-
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
-import { CourseCard } from "@/components/course-card"
-import { CourseFilters } from "@/components/course-filters"
-import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
-import { motion } from "framer-motion"
-import { GraduationCap, Sparkles } from "lucide-react"
+import { CoursesCatalog } from "@/components/courses-catalog"
+import { createClient } from "@/lib/supabase/server"
+import { Sparkles, GraduationCap } from "lucide-react"
 
-interface Course {
-  id: string
-  title: string
-  description: string
-  short_description: string | null
-  image_url: string | null
-  payment_type: string | null
-  one_time_price: number | null
-  duration_hours: number | null
-  level: string | null
-  published: boolean
-  type?: string
+export const metadata = {
+  title: "Catálogo de Cursos | Paidek",
+  description: "Explora nuestros cursos y recursos educativos para preparar tus exámenes libres.",
 }
 
 interface SubscriptionPlan {
@@ -32,92 +18,56 @@ interface SubscriptionPlan {
   course_id: string
 }
 
-export default function CoursesPage() {
-  const [courses, setCourses] = useState<Course[]>([])
-  const [filteredCourses, setFilteredCourses] = useState<Course[]>([])
-  const [coursePlans, setCoursePlans] = useState<Record<string, SubscriptionPlan[]>>({})
-  const [isLoading, setIsLoading] = useState(true)
-  const [levelFilter, setLevelFilter] = useState("all")
-  const [searchQuery, setSearchQuery] = useState("")
+export default async function CoursesPage() {
+  const supabase = await createClient()
 
-  useEffect(() => {
-    async function fetchCourses() {
-      const supabase = createClient()
-      const { data: coursesData, error } = await supabase
-        .from("courses")
-        .select("*")
-        .eq("published", true)
-        .order("position", { ascending: true })
-        .order("created_at", { ascending: false })
+  // 1. Fetch Courses
+  const { data: coursesData, error } = await supabase
+    .from("courses")
+    .select("*")
+    .eq("published", true)
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: false })
 
-      if (error) {
-        console.error("Error fetching courses:", error)
-      } else {
-        setCourses(coursesData || [])
-        setFilteredCourses(coursesData || [])
+  if (error) {
+    console.error("Error fetching courses:", error)
+  }
 
-        // Fetch plans for all courses
-        if (coursesData && coursesData.length > 0) {
-          const courseIds = coursesData.map(c => c.id)
-          const { data: plansData } = await supabase
-            .from("subscription_plans")
-            .select("*")
-            .in("course_id", courseIds)
-            .eq("is_active", true)
-            .order("price", { ascending: true })
+  const courses = coursesData || []
 
-          const plansByCourse: Record<string, SubscriptionPlan[]> = {}
-          plansData?.forEach((plan) => {
-            if (!plansByCourse[plan.course_id]) {
-              plansByCourse[plan.course_id] = []
-            }
-            plansByCourse[plan.course_id].push(plan)
-          })
-          setCoursePlans(plansByCourse)
+  // 2. Fetch Plans
+  let plansByCourse: Record<string, SubscriptionPlan[]> = {}
+
+  if (courses.length > 0) {
+    const courseIds = courses.map(c => c.id)
+    const { data: plansData } = await supabase
+      .from("subscription_plans")
+      .select("*")
+      .in("course_id", courseIds)
+      .eq("is_active", true)
+      .order("price", { ascending: true })
+
+    if (plansData) {
+      plansData.forEach((plan) => {
+        if (!plansByCourse[plan.course_id]) {
+          plansByCourse[plan.course_id] = []
         }
-      }
-      setIsLoading(false)
+        plansByCourse[plan.course_id].push(plan)
+      })
     }
-
-    fetchCourses()
-  }, [])
-
-  useEffect(() => {
-    let filtered = courses
-
-    // Filter by level
-    if (levelFilter !== "all") {
-      filtered = filtered.filter((course) => course.level === levelFilter)
-    }
-
-    // Filter by search query
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (course) =>
-          course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          course.description.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    }
-
-    setFilteredCourses(filtered)
-  }, [levelFilter, searchQuery, courses])
+  }
 
   return (
     <main className="min-h-screen flex flex-col">
       <Navbar />
       <div className="flex-1">
         <section className="pt-16 pb-6 bg-gradient-to-b from-background via-muted/30 to-background relative overflow-hidden">
-          {/* Decoración de fondo */}
+          {/* Background decoration */}
           <div className="absolute inset-0 bg-grid-white/[0.02] bg-[size:50px_50px]" />
           <div className="absolute top-0 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
           
           <div className="container mx-auto px-4 relative">
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="text-center mb-8"
-            >
+            <div className="text-center mb-8">
               <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-4">
                 <Sparkles className="h-4 w-4" />
                 <span className="text-sm font-medium">Aprende a tu ritmo</span>
@@ -130,13 +80,8 @@ export default function CoursesPage() {
                 Explora nuestra colección completa de cursos para exámenes libres. Elige el plan que mejor se adapte a tus necesidades.
               </p>
               
-              {/* Stats */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.6 }}
-                className="flex justify-center gap-8 mt-8"
-              >
+              {/* Stats - Rendered Server Side */}
+              <div className="flex justify-center gap-8 mt-8">
                 <div className="flex flex-col items-center">
                   <div className="flex items-center gap-2">
                     <GraduationCap className="h-5 w-5 text-primary" />
@@ -144,66 +89,14 @@ export default function CoursesPage() {
                   </div>
                   <span className="text-sm text-muted-foreground">Cursos disponibles</span>
                 </div>
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
           </div>
         </section>
 
         <section className="pt-2 pb-12 relative">
           <div className="container mx-auto px-4">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.6 }}
-            >
-              <CourseFilters onLevelChange={setLevelFilter} onSearchChange={setSearchQuery} />
-            </motion.div>
-
-            {isLoading ? (
-              <div className="text-center py-12">
-                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
-                <p className="text-muted-foreground mt-4">Cargando cursos...</p>
-              </div>
-            ) : filteredCourses.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="text-center py-12 bg-muted/30 rounded-lg border border-dashed"
-              >
-                <p className="text-muted-foreground text-lg">No se encontraron cursos con los filtros seleccionados.</p>
-                <p className="text-sm text-muted-foreground mt-2">Intenta ajustar tus filtros de búsqueda</p>
-              </motion.div>
-            ) : (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-              >
-                {filteredCourses.map((course, index) => (
-                  <motion.div
-                    key={course.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 * index, duration: 0.5 }}
-                    className="h-full"
-                  >
-                    <CourseCard
-                      id={course.id}
-                      title={course.title}
-                      description={course.short_description || course.description}
-                      image_url={course.image_url}
-                      payment_type={course.payment_type}
-                      one_time_price={course.one_time_price}
-                      duration_hours={course.duration_hours}
-                      level={course.level}
-                      type={course.type}
-                      initialPlans={coursePlans[course.id] || []}
-                    />
-                  </motion.div>
-                ))}
-              </motion.div>
-            )}
+            <CoursesCatalog courses={courses} plans={plansByCourse} />
           </div>
         </section>
       </div>
