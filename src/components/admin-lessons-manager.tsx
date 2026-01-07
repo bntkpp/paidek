@@ -34,6 +34,39 @@ import { Badge } from "@/components/ui/badge"
 import { Loader2, Pencil, Plus, Trash2, Video, FileText, Dumbbell, File, Upload } from "lucide-react"
 import { useRouter } from "next/navigation" // ← AGREGAR
 
+// Function to convert YouTube URLs to embed format
+function convertToYouTubeEmbed(url: string): string {
+  if (!url) return ""
+
+  // Already in embed format
+  if (url.includes("/embed/")) return url
+
+  // Extract video ID from various YouTube URL formats
+  let videoId = ""
+
+  // youtu.be/VIDEO_ID
+  if (url.includes("youtu.be/")) {
+    videoId = url.split("youtu.be/")[1]?.split("?")[0]
+  }
+  // youtube.com/watch?v=VIDEO_ID
+  else if (url.includes("youtube.com/watch")) {
+    const urlParams = new URLSearchParams(url.split("?")[1])
+    videoId = urlParams.get("v") || ""
+  }
+  // youtube.com/v/VIDEO_ID
+  else if (url.includes("youtube.com/v/")) {
+    videoId = url.split("/v/")[1]?.split("?")[0]
+  }
+
+  // If we found a video ID, return embed URL
+  if (videoId) {
+    return `https://www.youtube.com/embed/${videoId}`
+  }
+
+  // Return original URL if not a YouTube link
+  return url
+}
+
 interface ModuleOption {
   id: string
   title: string
@@ -228,7 +261,7 @@ export function AdminLessonsManager({ initialLessons, modules }: AdminLessonsMan
       module_id: formState.moduleId,
       order_index: formState.orderIndex ? Number(formState.orderIndex) : null,
       duration_minutes: formState.duration ? Number(formState.duration) : null,
-      video_url: formState.videoUrl || null,
+      video_url: formState.videoUrl ? convertToYouTubeEmbed(formState.videoUrl) : null,
       content: formState.content || null,
       content_title: formState.contentTitle || null,
     }
@@ -782,7 +815,7 @@ function EditLessonDialog({
         module_id: state.moduleId,
         order_index: state.orderIndex ? Number(state.orderIndex) : null,
         duration_minutes: state.duration ? Number(state.duration) : null,
-        video_url: state.videoUrl || null,
+        video_url: state.videoUrl ? convertToYouTubeEmbed(state.videoUrl) : null,
         content: state.content || null,
         content_title: state.contentTitle || null,
       }

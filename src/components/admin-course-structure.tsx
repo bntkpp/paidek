@@ -56,6 +56,39 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useRef } from "react"
 
+// Function to convert YouTube URLs to embed format
+function convertToYouTubeEmbed(url: string): string {
+  if (!url) return ""
+
+  // Already in embed format
+  if (url.includes("/embed/")) return url
+
+  // Extract video ID from various YouTube URL formats
+  let videoId = ""
+
+  // youtu.be/VIDEO_ID
+  if (url.includes("youtu.be/")) {
+    videoId = url.split("youtu.be/")[1]?.split("?")[0]
+  }
+  // youtube.com/watch?v=VIDEO_ID
+  else if (url.includes("youtube.com/watch")) {
+    const urlParams = new URLSearchParams(url.split("?")[1])
+    videoId = urlParams.get("v") || ""
+  }
+  // youtube.com/v/VIDEO_ID
+  else if (url.includes("youtube.com/v/")) {
+    videoId = url.split("/v/")[1]?.split("?")[0]
+  }
+
+  // If we found a video ID, return embed URL
+  if (videoId) {
+    return `https://www.youtube.com/embed/${videoId}`
+  }
+
+  // Return original URL if not a YouTube link
+  return url
+}
+
 // Componente de editor de texto enriquecido
 function RichTextEditor({ value, onChange }: { value: string, onChange: (value: string) => void }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -990,11 +1023,11 @@ function CreateLessonDialog({ moduleId, moduleTitle, onCreated }: { moduleId: st
         title: formData.title,
         lesson_type: formData.lesson_type,
         order_index: nextOrderIndex,
+        module_id: moduleId,
         duration_minutes: formData.duration_minutes,
-        video_url: formData.video_url || null,
+        video_url: formData.video_url ? convertToYouTubeEmbed(formData.video_url) : null,
         content: formData.content || null,
         content_title: formData.content_title || null,
-        module_id: moduleId,
       })
 
       if (error) throw error
@@ -1285,7 +1318,7 @@ function EditLessonDialog({ lesson, moduleId, onUpdated }: { lesson: Lesson, mod
           order_index: formData.order_index,
           duration_minutes: formData.duration_minutes,
           lesson_type: formData.lesson_type,
-          video_url: formData.video_url || null,
+          video_url: formData.video_url ? convertToYouTubeEmbed(formData.video_url) : null,
           content: formData.content || null,
           content_title: formData.content_title || null,
         })

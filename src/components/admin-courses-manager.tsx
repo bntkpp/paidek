@@ -372,6 +372,7 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
         payment_type: currentPaymentType,
         one_time_price: currentPaymentType === "one_time" ? parseFloat(formData.get("one_time_price") as string) || null : null,
         duration_hours: parseInt(formData.get("duration_hours") as string) || null,
+        position: parseInt(formData.get("position") as string) || 0,
         level: formData.get("level") as string,
         published: formData.get("published") === "on",
         type: productType,
@@ -601,9 +602,24 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
             </div>
           )}
 
-          <div className="flex items-center space-x-2">
-            <Switch id="published" name="published" />
-            <Label htmlFor="published">Publicado</Label>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="create-position">Posición (Orden)</Label>
+              <Input
+                id="create-position"
+                name="position"
+                type="number"
+                defaultValue={0}
+                step="1"
+              />
+              <p className="text-xs text-muted-foreground">
+                Define el orden de visualización. Menor número = aparece primero.
+              </p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch id="published" name="published" />
+              <Label htmlFor="published">Publicado</Label>
+            </div>
           </div>
 
           <div className="border-t pt-4 space-y-4">
@@ -794,6 +810,7 @@ function EditCourseDialog({
         payment_type: currentPaymentType,
         one_time_price: currentPaymentType === "one_time" ? parseFloat(formData.get("one_time_price") as string) || null : null,
         duration_hours: parseInt(formData.get("duration_hours") as string) || null,
+        position: parseInt(formData.get("position") as string) || 0,
         level: formData.get("level") as string,
         published: formData.get("published") === "on",
         type: productType,
@@ -1061,9 +1078,25 @@ function EditCourseDialog({
             </div>
           )}
 
-          <div className="flex items-center space-x-2">
-            <Switch id="edit-published" name="published" defaultChecked={course.published} />
-            <Label htmlFor="edit-published">Publicado</Label>
+          <div className="space-y-4 border-t pt-4">
+            <div className="space-y-2">
+               <Label htmlFor="edit-position">Posición (Orden)</Label>
+               <Input
+                 id="edit-position"
+                 name="position"
+                 type="number"
+                 defaultValue={course.position || 0}
+                 step="1"
+               />
+                <p className="text-xs text-muted-foreground">
+                  Define el orden de visualización. Menor número = aparece primero.
+                </p>
+            </div>
+
+            <div className="flex items-center space-x-2">
+               <Switch id="edit-published" name="published" defaultChecked={course.published} />
+               <Label htmlFor="edit-published">Publicado</Label>
+            </div>
           </div>
 
           <div className="border-t pt-4 space-y-4">
