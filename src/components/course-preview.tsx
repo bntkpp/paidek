@@ -45,6 +45,7 @@ export function CoursePreview() {
         .from("courses")
         .select("*")
         .eq("published", true)
+        .order("position", { ascending: true })
         .order("created_at", { ascending: false })
         .limit(3)
 
