@@ -613,3 +613,52 @@ export async function cleanOrphanAuthUsers() {
   revalidatePath("/admin/users")
   return results
 }
+
+// ==================== REVIEWS ====================
+
+export async function updateReview(reviewId: string, data: { rating?: number; comment?: string }) {
+  const supabase = await createClient()
+
+  // Verify review exists
+  const { data: existingReview, error: checkError } = await supabase
+    .from("reviews")
+    .select("id")
+    .eq("id", reviewId)
+    .single()
+
+  if (checkError || !existingReview) {
+    throw new Error(`Review not found: ${reviewId}`)
+  }
+
+  const { data: updatedReview, error } = await supabase
+    .from("reviews")
+    .update(data)
+    .eq("id", reviewId)
+    .select()
+    .single()
+
+  if (error) {
+     console.error("Error updating review:", error)
+     throw new Error(`Error updating review: ${error.message}`)
+  }
+
+  revalidatePath("/admin/reviews")
+  return updatedReview
+}
+
+export async function deleteReview(reviewId: string) {
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from("reviews")
+    .delete()
+    .eq("id", reviewId)
+
+  if (error) {
+    console.error("Error deleting review:", error)
+    throw new Error(`Error deleting review: ${error.message}`)
+  }
+
+  revalidatePath("/admin/reviews")
+  return true
+}
