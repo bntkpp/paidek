@@ -363,6 +363,7 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
         downloadUrl = publicUrl
       }
 
+      const published = formData.get("published") === "on"
       const payload = {
         title: formData.get("title") as string,
         description: formData.get("description") as string,
@@ -374,7 +375,9 @@ function CreateCourseDialog({ onCreated }: { onCreated: (course: any) => void })
         duration_hours: parseInt(formData.get("duration_hours") as string) || null,
         position: parseInt(formData.get("position") as string) || 0,
         level: formData.get("level") as string,
-        published: formData.get("published") === "on",
+        published: published,
+        is_published: published,
+        status: published ? 'published' : 'draft',
         type: productType,
         download_url: downloadUrl,
       }
@@ -801,6 +804,7 @@ function EditCourseDialog({
         downloadUrl = publicUrl
       }
 
+      const published = formData.get("published") === "on"
       const payload = {
         title: formData.get("title") as string,
         description: formData.get("description") as string,
@@ -812,7 +816,9 @@ function EditCourseDialog({
         duration_hours: parseInt(formData.get("duration_hours") as string) || null,
         position: parseInt(formData.get("position") as string) || 0,
         level: formData.get("level") as string,
-        published: formData.get("published") === "on",
+        published: published,
+        is_published: published,
+        status: published ? 'published' : 'draft',
         type: productType,
         download_url: downloadUrl,
       }
