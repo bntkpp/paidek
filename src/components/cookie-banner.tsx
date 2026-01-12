@@ -44,7 +44,7 @@ export function CookieBanner() {
             Al continuar navegando, aceptas nuestra <a href="/privacy" className="underline hover:text-primary">Política de Privacidad</a>.
           </p>
         </div>
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
           <Button variant="outline" size="sm" onClick={declineCookies} className="w-full md:w-auto">
             Rechazar
           </Button>
