@@ -4,6 +4,8 @@ import { CoursesCatalog } from "@/components/courses-catalog"
 import { createClient } from "@/lib/supabase/server"
 import { Sparkles, GraduationCap } from "lucide-react"
 
+export const dynamic = "force-dynamic"
+
 export const metadata = {
   title: "Catálogo de Cursos | Paidek",
   description: "Explora nuestros cursos y recursos educativos para preparar tus exámenes libres.",

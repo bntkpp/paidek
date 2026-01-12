@@ -49,6 +49,7 @@ export function CoursePreview() {
         .order("created_at", { ascending: false })
         .limit(3)
 
+
       if (coursesData && coursesData.length > 0) {
         setCourses(coursesData)
         
