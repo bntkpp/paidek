@@ -1,7 +1,7 @@
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { CoursesCatalog } from "@/components/courses-catalog"
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { Sparkles, GraduationCap } from "lucide-react"
 
 export const dynamic = "force-dynamic"
@@ -21,7 +21,7 @@ interface SubscriptionPlan {
 }
 
 export default async function CoursesPage() {
-  const supabase = await createClient()
+  const supabase = createAdminClient()
 
   // 1. Fetch Courses
   const { data: coursesData, error } = await supabase
