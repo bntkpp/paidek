@@ -27,7 +27,7 @@ export default async function CoursesPage() {
   const { data: coursesData, error } = await supabase
     .from("courses")
     .select("*")
-    .eq("published", true)
+    .or("published.eq.true,is_published.eq.true")
     .order("position", { ascending: true })
     .order("created_at", { ascending: false })
 

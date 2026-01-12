@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Clock, BookOpen, Award, CheckCircle2, TrendingUp, Home, Brain, Target, Star, Download } from "lucide-react"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { redirect } from "next/navigation"
 import { CourseReviews } from "@/components/course-reviews"
 import { sendMetaEvent } from "@/lib/meta-conversions"
@@ -27,21 +28,40 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
   const { id } = await params
   const supabase = await createClient()
 
-  const { data: course, error } = await supabase
-    .from("courses")
-    .select("*")
-    .eq("id", id)
-    .eq("published", true)
-    .single()
-
-  if (error || !course) {
-    redirect("/courses")
-  }
-
-  // Check if user is logged in and enrolled
+  // Check if user is logged in
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  // Check if user is admin
+  let isAdmin = false
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single()
+    isAdmin = profile?.role === "admin"
+  }
+
+  // Fetch course data
+  // Use admin client to ensure we can read it regardless of RLS policies for anon users
+  const adminSupabase = createAdminClient()
+  const { data: course, error } = await adminSupabase
+    .from("courses")
+    .select("*")
+    .eq("id", id)
+    .single()
+
+  if (error || !course) {
+    return redirect("/courses")
+  }
+  
+  // Visibility check:
+  // - If course is not published, only admins can see it
+  if (!course.published && !isAdmin) {
+    return redirect("/courses")
+  }
 
   let isEnrolled = false
   if (user) {
@@ -56,14 +76,15 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
   }
 
   // Get modules for this course
-  const { data: modules } = await supabase
+  // Use adminSupabase to ensure data is fetched even if RLS is strict for anon users
+  const { data: modules } = await adminSupabase
     .from("modules")
     .select("*")
     .eq("course_id", id)
     .order("order_index", { ascending: true })
 
   // Get subscription plans for this course
-  const { data: subscriptionPlans } = await supabase
+  const { data: subscriptionPlans } = await adminSupabase
     .from("subscription_plans")
     .select("*")
     .eq("course_id", id)
