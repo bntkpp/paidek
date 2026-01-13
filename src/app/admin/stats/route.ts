@@ -23,7 +23,7 @@ export async function GET() {
   const { data: payments } = await supabase
     .from("payments")
     .select("amount, status, created_at, course_id, courses(title)")
-    .eq("status", "completed")
+    .eq("status", "approved")
 
   const { data: enrollments } = await supabase
     .from("enrollments")
