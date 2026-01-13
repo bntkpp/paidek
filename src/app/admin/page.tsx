@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { AdminLayout } from "@/components/admin-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, BookOpen, GraduationCap, DollarSign } from "lucide-react"
+import { Users, BookOpen, GraduationCap, DollarSign, Activity } from "lucide-react"
 import { AdminDashboardCharts } from "@/components/admin-dashboard-charts"
 
 export const dynamic = "force-dynamic"
@@ -23,6 +24,20 @@ export default async function AdminDashboardPage() {
   if (!profile || profile.role !== "admin") {
     redirect("/dashboard")
   }
+
+  // Get active users (last 24h) from Auth
+  const adminSupabase = createAdminClient()
+  const { data: { users: authUsers } } = await adminSupabase.auth.admin.listUsers({
+    page: 1,
+    perPage: 1000
+  })
+
+  const oneDayAgo = new Date()
+  oneDayAgo.setDate(oneDayAgo.getDate() - 1)
+  
+  const activeUsers24h = authUsers?.filter(u => 
+    u.last_sign_in_at && new Date(u.last_sign_in_at) > oneDayAgo
+  ).length || 0
 
   // Get counts
   const { count: usersCount } = await supabase
@@ -50,19 +65,21 @@ export default async function AdminDashboardPage() {
     .select("*")
     .order("created_at", { ascending: false })
 
-  const totalRevenue = payments?.reduce((sum, payment) => sum + (payment.amount || 0), 0) || 0
+  // Filter approved payments for revenue calculation
+  const approvedPayments = payments?.filter(p => p.status === 'approved') || []
+  const totalRevenue = approvedPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0)
 
   // Revenue by month (last 6 months)
   const now = new Date()
   const revenueSeries = Array.from({ length: 6 }, (_, i) => {
     const date = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1)
-    const monthPayments = payments?.filter((p) => {
+    const monthPayments = approvedPayments.filter((p) => {
       const paymentDate = new Date(p.created_at)
       return (
         paymentDate.getMonth() === date.getMonth() &&
         paymentDate.getFullYear() === date.getFullYear()
       )
-    }) || []
+    })
     
     const revenue = monthPayments.reduce((sum, p) => sum + (p.amount || 0), 0)
     
@@ -100,11 +117,56 @@ export default async function AdminDashboardPage() {
     }))
 
   // Funnel data - Usuarios únicos en cada etapa
-  const { data: allUsers } = await supabase.from("profiles").select("id")
+  const { data: allUsers } = await supabase.from("profiles").select("id, created_at")
   
   const usersWithEnrollments = new Set(enrollments?.map(e => e.user_id) || [])
   const usersWithActiveEnrollments = new Set(activeEnrollments.map(e => e.user_id))
   const usersWithPayments = new Set(payments?.map(p => p.user_id).filter(Boolean) || [])
+
+  // Revenue by Course (Top 5)
+  const courseRevenueMap = new Map<string, number>()
+  approvedPayments.forEach(p => {
+    if (p.course_id && p.amount) {
+      const current = courseRevenueMap.get(p.course_id) || 0
+      courseRevenueMap.set(p.course_id, current + p.amount)
+    }
+  })
+
+  const topRevenueCourses = Array.from(courseRevenueMap.entries())
+    .map(([courseId, revenue]) => {
+      const course = allCourses?.find(c => c.id === courseId)
+      return {
+        course: course?.title || 'Desconocido',
+        revenue: revenue
+      }
+    })
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5)
+
+  // User & Enrollment Growth (Last 6 months)
+  const growthSeries = Array.from({ length: 6 }, (_, i) => {
+    const date = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1)
+    
+    // Users created in this month
+    const monthUsers = allUsers?.filter(u => {
+      if (!u.created_at) return false
+      const d = new Date(u.created_at)
+      return d.getMonth() === date.getMonth() && d.getFullYear() === date.getFullYear()
+    }).length || 0
+
+    // Enrollments in this month
+    const monthEnrollments = enrollments?.filter(e => {
+      if (!e.enrolled_at) return false
+      const d = new Date(e.enrolled_at)
+      return d.getMonth() === date.getMonth() && d.getFullYear() === date.getFullYear()
+    }).length || 0
+    
+    return {
+      period: date.toLocaleDateString("es-CL", { month: "short" }),
+      users: monthUsers,
+      enrollments: monthEnrollments
+    }
+  })
 
   // Funnel correcto: usuarios únicos en cada etapa
   const funnelSeries = [
@@ -124,17 +186,33 @@ export default async function AdminDashboardPage() {
           <p className="text-muted-foreground">Vista general de la plataforma</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           <Card className="border-2 hover:border-primary/20 transition-all duration-200 overflow-hidden relative group">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Usuarios</CardTitle>
+              <CardTitle className="text-sm font-medium">Usuarios Activos (24h)</CardTitle>
               <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-sm">
-                <Users className="h-5 w-5 text-white" />
+                <Activity className="h-5 w-5 text-white" />
               </div>
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold bg-gradient-to-br from-blue-600 to-blue-500 bg-clip-text text-transparent">
+                {activeUsers24h}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Han iniciado sesión hoy</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-2 hover:border-primary/20 transition-all duration-200 overflow-hidden relative group">
+            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Usuarios</CardTitle>
+              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-sm">
+                <Users className="h-5 w-5 text-white" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold bg-gradient-to-br from-indigo-600 to-indigo-500 bg-clip-text text-transparent">
                 {usersCount || 0}
               </div>
               <p className="text-xs text-muted-foreground mt-1">Usuarios registrados</p>
@@ -194,6 +272,8 @@ export default async function AdminDashboardPage() {
           revenueSeries={revenueSeries}
           topCourses={topCourses}
           funnelSeries={funnelSeries}
+          topRevenueCourses={topRevenueCourses}
+          growthSeries={growthSeries}
         />
       </div>
     </AdminLayout>
