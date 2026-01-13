@@ -53,7 +53,9 @@ export function AdminPaymentsManager({ initialPayments }: AdminPaymentsManagerPr
   )
 
   // Estadísticas
-  const totalRevenue = payments.reduce((sum, p) => sum + p.amount, 0)
+  const totalRevenue = payments
+    .filter((p) => p.status === "approved")
+    .reduce((sum, p) => sum + p.amount, 0)
   const approvedPayments = payments.filter((p) => p.status === "approved").length
   const pendingPayments = payments.filter((p) => p.status === "pending").length
   const approvedRevenue = payments

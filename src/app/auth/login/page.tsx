@@ -41,7 +41,13 @@ function LoginForm() {
         window.location.href = redirectUrl
       }
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "Ocurrió un error")
+      let errorMessage = error instanceof Error ? error.message : "Ocurrió un error"
+      
+      if (errorMessage === "Invalid login credentials") {
+        errorMessage = "Credenciales incorrectas. Verifica tu correo y contraseña."
+      }
+
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
