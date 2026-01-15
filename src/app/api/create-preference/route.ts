@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { MercadoPagoConfig, Preference } from "mercadopago"
 import { sendMetaEvent } from "@/lib/meta-conversions"
+import { createAdminClient } from "@/lib/supabase/admin"
+import { createClient } from "@supabase/supabase-js" // To sign in user
 
 const planLabels: Record<string, string> = {
   "1_month": "Plan Mensual",
@@ -11,9 +13,77 @@ const planLabels: Record<string, string> = {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { courseId, userId, planId, price, months, selectedAddons, addonsTotal, totalPrice } = body
+    const { courseId, userId: providedUserId, planId, price, months, selectedAddons, addonsTotal, totalPrice, guestEmail, guestName, guestSurname } = body
 
-    console.log("Creating preference:", { courseId, userId, planId, price, months, selectedAddons, addonsTotal, totalPrice })
+    console.log("Creating preference:", { courseId, userId: providedUserId, planId, price, months, selectedAddons, addonsTotal, totalPrice })
+
+    let userId = providedUserId
+    let sessionData = null
+
+    // Handle guest checkout - create or find user
+    if (!userId && guestEmail) {
+      if (!guestName || !guestSurname) {
+        return NextResponse.json({ error: "Missing guest details" }, { status: 400 })
+      }
+
+      const supabaseAdmin = createAdminClient()
+
+      // Generate a temporary secure password
+      const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8) + "Aa1!"
+
+      // Attempt to create user
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email: guestEmail,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          full_name: `${guestName} ${guestSurname}`,
+          first_name: guestName,
+          last_name: guestSurname
+        }
+      })
+
+      if (newUser && newUser.user) {
+        userId = newUser.user.id
+        
+        // Sign in the user to get session tokens
+        const supabaseAnon = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          {
+            auth: {
+              autoRefreshToken: false,
+              persistSession: false
+            }
+          }
+        )
+
+        const { data: session } = await supabaseAnon.auth.signInWithPassword({
+          email: guestEmail,
+          password: tempPassword
+        })
+
+        if (session.session) {
+          sessionData = session.session
+        }
+      } else if (createError) {
+        // If user already exists, try to find their ID
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('id')
+          .eq('email', guestEmail)
+          .single()
+
+        if (profile) {
+          userId = profile.id
+        } else {
+          return NextResponse.json(
+            { error: "El correo ya está registrado. Por favor inicia sesión para continuar." },
+            { status: 400 }
+          )
+        }
+      }
+    }
 
     if (!courseId || !userId || !planId || !price) {
       return NextResponse.json(
@@ -169,6 +239,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       preferenceId: response.id,
       initPoint: response.init_point,
+      session: sessionData // Return session if created
     })
   } catch (error: any) {
     console.error("Error creating preference:", error)

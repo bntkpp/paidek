@@ -14,6 +14,7 @@ export default function PaymentSuccessPage() {
   const searchParams = useSearchParams()
   const courseId = searchParams.get("course_id")
   const [isProcessing, setIsProcessing] = useState(true)
+  const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
     async function processPayment() {
@@ -26,9 +27,13 @@ export default function PaymentSuccessPage() {
       const {
         data: { user },
       } = await supabase.auth.getUser()
+      
+      setUser(user)
 
+      // If user is not logged in, we assume the webhook will handle the enrollment
+      // and we just show the success message
       if (!user) {
-        router.push("/auth/login")
+        setIsProcessing(false)
         return
       }
 
@@ -100,12 +105,18 @@ export default function PaymentSuccessPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-center text-muted-foreground">
-            Tu inscripción ha sido activada. Ya puedes acceder al curso.
+            {user ? "Tu inscripción ha sido activada. Ya puedes acceder al curso." : "Tu inscripción ha sido activada. Revisa tu correo electrónico para obtener los detalles de acceso."}
           </p>
           <div className="flex flex-col gap-2">
-            <Button asChild className="w-full">
-              <Link href="/dashboard">Ir a Mis Cursos</Link>
-            </Button>
+            {user ? (
+              <Button asChild className="w-full">
+                <Link href="/dashboard">Ir a Mis Cursos</Link>
+              </Button>
+            ) : (
+              <Button asChild className="w-full">
+                <Link href="/auth/login">Iniciar Sesión</Link>
+              </Button>
+            )}
             <Button asChild variant="outline" className="w-full">
               <Link href="/courses">Explorar Más Cursos</Link>
             </Button>

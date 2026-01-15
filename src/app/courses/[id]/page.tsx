@@ -228,8 +228,8 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
                           )
                         ) : (
                           <Button size="lg" className="w-full" asChild>
-                            <Link href={user ? `/checkout/${id}` : "/auth/sign-up"}>
-                              {user ? (isEbook ? "Comprar Ebook" : "Comprar Curso") : "Registrarse"}
+                            <Link href={`/checkout/${id}`}>
+                              {isEbook ? "Comprar Ebook" : "Comprar Curso"}
                             </Link>
                           </Button>
                         )}
@@ -288,8 +288,8 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
                                 </Button>
                               ) : (
                                 <Button size="lg" className="w-full" asChild>
-                                  <Link href={user ? `/checkout/${id}?plan=${plan.id}` : "/auth/sign-up"}>
-                                    {user ? `Comprar ${plan.name || `Plan ${plan.duration_months} ${plan.duration_months === 1 ? 'Mes' : 'Meses'}`}` : "Registrarse"}
+                                  <Link href={`/checkout/${id}?plan=${plan.id}`}>
+                                    {`Comprar ${plan.name || `Plan ${plan.duration_months} ${plan.duration_months === 1 ? 'Mes' : 'Meses'}`}`}
                                   </Link>
                                 </Button>
                               )}

@@ -5,6 +5,7 @@ import { useRouter, useParams, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { Badge } from "@/components/ui/badge"
@@ -58,6 +59,11 @@ export default function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
 
+  // Guest checkout state
+  const [guestEmail, setGuestEmail] = useState("")
+  const [guestFirstName, setGuestFirstName] = useState("")
+  const [guestLastName, setGuestLastName] = useState("")
+
   useEffect(() => {
     // Get plan from URL
     const planParam = searchParams.get("plan")
@@ -81,12 +87,9 @@ export default function CheckoutPage() {
         data: { user },
       } = await supabase.auth.getUser()
 
-      if (!user) {
-        router.push("/auth/login")
-        return
+      if (user) {
+        setUser(user)
       }
-
-      setUser(user)
 
       const { data: courseData, error: courseError } = await supabase
         .from("courses")
@@ -102,19 +105,21 @@ export default function CheckoutPage() {
       }
 
       // Check if already enrolled and active
-      const { data: enrollment } = await supabase
-        .from("enrollments")
-        .select("*, expires_at")
-        .eq("user_id", user.id)
-        .eq("course_id", params.courseId)
-        .single()
+      if (user) {
+        const { data: enrollment } = await supabase
+          .from("enrollments")
+          .select("*, expires_at")
+          .eq("user_id", user.id)
+          .eq("course_id", params.courseId)
+          .single()
 
-      // Verificar si la inscripción está activa y no ha expirado
-      if (enrollment) {
-        const isExpired = enrollment.expires_at && new Date(enrollment.expires_at) < new Date()
-        if (enrollment.is_active && !isExpired) {
-          router.push("/dashboard")
-          return
+        // Verificar si la inscripción está activa y no ha expirado
+        if (enrollment) {
+          const isExpired = enrollment.expires_at && new Date(enrollment.expires_at) < new Date()
+          if (enrollment.is_active && !isExpired) {
+            router.push("/dashboard")
+            return
+          }
         }
       }
 
@@ -245,6 +250,13 @@ export default function CheckoutPage() {
   const handlePayment = async () => {
     if (!selectedPlan) return
 
+    if (!user) {
+      if (!guestEmail || !guestFirstName || !guestLastName) {
+        alert("Por favor completa todos los datos personales para continuar.")
+        return
+      }
+    }
+
     setIsProcessing(true)
 
     try {
@@ -279,7 +291,10 @@ export default function CheckoutPage() {
         },
         body: JSON.stringify({
           courseId: params.courseId,
-          userId: user.id,
+          userId: user?.id,
+          guestEmail: !user ? guestEmail : undefined,
+          guestName: !user ? guestFirstName : undefined,
+          guestSurname: !user ? guestLastName : undefined,
           planId: selectedPlan.id,
           price: selectedPlan.price,
           months: selectedPlan.duration_months,
@@ -290,6 +305,15 @@ export default function CheckoutPage() {
       })
 
       const data = await response.json()
+
+      if (data.session) {
+        // If we got a session back (guest checkout), sign them in
+        const supabase = createClient()
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        })
+      }
 
       if (data.initPoint) {
         // Redirect to Mercado Pago
@@ -340,6 +364,48 @@ export default function CheckoutPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2">
+              {!user && (
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle>Datos personales</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Correo*</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="Correo"
+                        value={guestEmail}
+                        onChange={(e) => setGuestEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="firstName">Nombre*</Label>
+                        <Input
+                          id="firstName"
+                          placeholder="Nombre"
+                          value={guestFirstName}
+                          onChange={(e) => setGuestFirstName(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="lastName">Apellido*</Label>
+                        <Input
+                          id="lastName"
+                          placeholder="Apellido"
+                          value={guestLastName}
+                          onChange={(e) => setGuestLastName(e.target.value)}
+                          required
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
               <Card>
                 <CardHeader>
                   <CardTitle>Resumen del Curso</CardTitle>
