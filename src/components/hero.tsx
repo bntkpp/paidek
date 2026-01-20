@@ -57,7 +57,7 @@ export function Hero() {
               transition={{ delay: 0.5, duration: 0.6 }}
             >
               <Button size="lg" asChild className="text-base">
-                <Link href="courses">
+                <Link href="/courses">
                   Explorar Cursos
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
