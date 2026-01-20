@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { createCourse, updateCourse, deleteCourse } from "@/app/admin/actions"
+import { reorderCourses } from "@/app/admin/course-actions"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -69,7 +70,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Pencil, Trash2, Plus, DollarSign, Clock, BookOpen, Video, Settings, Package, Upload, Loader2 } from "lucide-react"
+import { Pencil, Trash2, Plus, DollarSign, Clock, BookOpen, Video, Settings, Package, Upload, Loader2, ArrowLeft, ArrowRight } from "lucide-react"
 import { AdminSubscriptionPlansManager } from "@/components/admin-subscription-plans-manager"
 import { AdminCourseAddons } from "@/components/admin-course-addons"
 
@@ -99,6 +100,31 @@ export function AdminCoursesManager({ initialCourses }: AdminCoursesManagerProps
     }, 100)
   }
 
+  const handleMoveCourse = async (index: number, direction: 'prev' | 'next') => {
+    if (direction === 'prev' && index === 0) return
+    if (direction === 'next' && index === courses.length - 1) return
+
+    const newCourses = [...courses]
+    const targetIndex = direction === 'prev' ? index - 1 : index + 1
+    
+    // Swap
+    const temp = newCourses[index]
+    newCourses[index] = newCourses[targetIndex]
+    newCourses[targetIndex] = temp
+
+    // Optimistic update
+    setCourses(newCourses)
+
+    // Server update
+    try {
+      const orderedIds = newCourses.map(c => c.id)
+      await reorderCourses(orderedIds)
+    } catch (error) {
+      console.error("Error reordering courses:", error)
+      // Revert on error could be implemented here
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -110,12 +136,16 @@ export function AdminCoursesManager({ initialCourses }: AdminCoursesManagerProps
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {courses.map((course) => (
+        {courses.map((course, index) => (
           <CourseCard
             key={course.id}
             course={course}
+            index={index}
+            isFirst={index === 0}
+            isLast={index === courses.length - 1}
             onUpdated={handleCourseUpdated}
             onDeleted={handleCourseDeleted}
+            onMove={handleMoveCourse}
           />
         ))}
       </div>
@@ -135,12 +165,20 @@ export function AdminCoursesManager({ initialCourses }: AdminCoursesManagerProps
 // ==================== COURSE CARD ====================
 function CourseCard({
   course,
+  index,
+  isFirst,
+  isLast,
   onUpdated,
-  onDeleted
+  onDeleted,
+  onMove
 }: {
   course: any
+  index: number,
+  isFirst: boolean,
+  isLast: boolean,
   onUpdated: (course: any) => void
   onDeleted: (courseId: string) => void
+  onMove: (index: number, direction: 'prev' | 'next') => void
 }) {
   const [plans, setPlans] = useState<any[]>([])
   const [isLoadingPlans, setIsLoadingPlans] = useState(true)
@@ -193,9 +231,34 @@ function CourseCard({
               {course.short_description || course.description}
             </CardDescription>
           </div>
-          <div className="flex gap-2">
-            <EditCourseDialog course={course} onUpdated={onUpdated} />
-            <DeleteCourseDialog course={course} onDeleted={onDeleted} />
+          <div className="flex items-start gap-2">
+            <div className="flex items-center gap-0 mr-1 bg-secondary/30 rounded-lg border">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 hover:bg-secondary/80" 
+                disabled={isFirst}
+                onClick={() => onMove(index, 'prev')}
+                title="Mover antes"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div className="w-[1px] h-4 bg-border"></div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 hover:bg-secondary/80" 
+                disabled={isLast}
+                onClick={() => onMove(index, 'next')}
+                title="Mover después"
+              >
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex gap-1">
+              <EditCourseDialog course={course} onUpdated={onUpdated} />
+              <DeleteCourseDialog course={course} onDeleted={onDeleted} />
+            </div>
           </div>
         </div>
       </CardHeader>
