@@ -2,7 +2,7 @@
 
 import type React from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet"
 import { useState } from "react"
+import { createClient } from "@/lib/supabase/client"
 
 const navigation = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -35,7 +36,15 @@ const navigation = [
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const [open, setOpen] = useState(false)
+
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push("/")
+    router.refresh()
+  }
 
   const NavigationContent = () => (
     <>
@@ -63,18 +72,20 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       </nav>
 
       <div className="p-4 border-t bg-muted/50 space-y-2">
-        <Button asChild variant="ghost" className="w-full justify-start hover:bg-background transition-colors">
+        <Button asChild variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-background transition-colors">
           <Link href="/">
             <Home className="h-5 w-5 mr-3" />
             Ir al sitio
           </Link>
         </Button>
-        <form action="/auth/signout" method="post">
-          <Button type="submit" variant="ghost" className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors">
-            <LogOut className="h-5 w-5 mr-3" />
-            Cerrar sesión
-          </Button>
-        </form>
+        <Button 
+          onClick={handleLogout}
+          variant="ghost" 
+          className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
+        >
+          <LogOut className="h-5 w-5 mr-3" />
+          Cerrar sesión
+        </Button>
       </div>
     </>
   )

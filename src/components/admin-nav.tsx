@@ -72,16 +72,16 @@ export function AdminNav() {
       </div>
 
       <div className="pt-4 mt-4 border-t border-border space-y-1">
-        <Link href="/">
-          <Button variant="ghost" className="w-full justify-start">
+        <Button asChild variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground">
+          <Link href="/">
             <Home className="mr-2 h-4 w-4" />
             Ir al sitio
-          </Button>
-        </Link>
+          </Link>
+        </Button>
         
         <Button
           variant="ghost"
-          className="w-full justify-start"
+          className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20 cursor-pointer"
           onClick={handleLogout}
         >
           <LogOut className="mr-2 h-4 w-4" />
