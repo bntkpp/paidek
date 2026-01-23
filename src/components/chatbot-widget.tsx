@@ -164,7 +164,7 @@ export function ChatbotWidget({ courseId, courseName, isOpen: externalIsOpen, on
               </AvatarFallback>
             </Avatar>
             <div className="bg-muted/80 backdrop-blur-sm rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm max-w-[80%]">
-              <p>¡Hola! ¿En qué puedo ayudarte hoy?</p>
+              <p>Hola soy Paidek 👋, estoy aquí para ayudarte</p>
             </div>
           </div>
         )}
