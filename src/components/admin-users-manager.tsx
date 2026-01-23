@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { updateUser, deleteUser } from "@/app/admin/actions"
+import { updateUser, deleteUser, createUser } from "@/app/admin/actions"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -33,7 +33,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Pencil, Trash2, Users, UserCheck, DollarSign, GraduationCap } from "lucide-react"
+import { Pencil, Trash2, Users, UserCheck, DollarSign, GraduationCap, Plus, Loader2 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -57,12 +57,75 @@ export function AdminUsersManager({ initialUsers }: AdminUsersManagerProps) {
   const [users, setUsers] = useState(initialUsers)
   const [searchTerm, setSearchTerm] = useState("")
   const { toast } = useToast()
+  
+  // Estados para creación de usuario
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
+  const [newUser, setNewUser] = useState({
+    email: "",
+    full_name: "",
+    password: "",
+    role: "student"
+  })
 
   const filteredUsers = users.filter(
     (user) =>
       user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  const handleCreateUser = async () => {
+    try {
+      if (!newUser.email || !newUser.full_name || !newUser.password) {
+        toast({
+          title: "Campos incompletos",
+          description: "Por favor completa todos los campos requeridos.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      setIsCreating(true)
+      const createdUser = await createUser(newUser)
+
+      // Crear el objeto para la UI localmente
+      const userWithStats: UserWithStats = {
+        id: createdUser.id,
+        email: newUser.email,
+        full_name: newUser.full_name,
+        role: newUser.role,
+        created_at: new Date().toISOString(),
+        enrollmentsCount: 0,
+        activeEnrollmentsCount: 0,
+        paymentsCount: 0,
+        totalSpent: 0
+      }
+
+      setUsers([userWithStats, ...users])
+      
+      toast({
+        title: "Usuario creado",
+        description: "El usuario ha sido creado correctamente.",
+      })
+      
+      setIsCreateDialogOpen(false)
+      setNewUser({
+        email: "",
+        full_name: "",
+        password: "",
+        role: "student"
+      })
+
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al crear usuario",
+        variant: "destructive",
+      })
+    } finally {
+      setIsCreating(false)
+    }
+  }
 
   const handleUserUpdated = (updatedUser: UserWithStats) => {
     setUsers((prev) => prev.map((u) => (u.id === updatedUser.id ? { ...u, ...updatedUser } : u)))
@@ -136,16 +199,93 @@ export function AdminUsersManager({ initialUsers }: AdminUsersManagerProps) {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Todos los Usuarios</CardTitle>
-          <CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
+          <div className="space-y-1">
+            <CardTitle>Todos los Usuarios</CardTitle>
+            <div className="text-sm text-muted-foreground pt-1">
+              Administra todos los usuarios de la plataforma
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
             <Input
               placeholder="Buscar por nombre o email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
+              className="w-[250px]"
             />
-          </CardDescription>
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Crear Usuario
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Crear Nuevo Usuario</DialogTitle>
+                  <DialogDescription>
+                    Ingresa los datos del nuevo usuario. Se creará la cuenta y se enviará confirmación.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="create-name">Nombre Completo</Label>
+                    <Input
+                      id="create-name"
+                      value={newUser.full_name}
+                      onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="create-email">Email</Label>
+                    <Input
+                      id="create-email"
+                      type="email"
+                      value={newUser.email}
+                      onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="create-password">Contraseña</Label>
+                    <Input
+                      id="create-password"
+                      type="password"
+                      value={newUser.password}
+                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="create-role">Rol</Label>
+                    <Select
+                      value={newUser.role}
+                      onValueChange={(value) => setNewUser({ ...newUser, role: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="student">Estudiante</SelectItem>
+                        <SelectItem value="admin">Administrador</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsCreateDialogOpen(false)}
+                    disabled={isCreating}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleCreateUser} disabled={isCreating}>
+                    {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Crear Usuario
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>

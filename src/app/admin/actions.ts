@@ -491,6 +491,57 @@ export async function updateUserRole(userId: string, role: string) {
 }
 
 // ==================== USER ACTIONS ====================
+export async function createUser(data: { email: string; full_name: string; password?: string; role?: string }) {
+  const { createAdminClient } = await import("@/lib/supabase/admin")
+  const supabaseAdmin = createAdminClient()
+
+  const { data: user, error } = await supabaseAdmin.auth.admin.createUser({
+    email: data.email,
+    password: data.password || "TempPass123!", 
+    email_confirm: true,
+    user_metadata: {
+      full_name: data.full_name,
+    },
+  })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  if (user.user) {
+    // Actualizar el rol y el nombre en el perfil
+    // Esperamos un poco para asegurarnos de que el trigger haya creado el perfil
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    const { error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .update({ 
+        role: data.role || "student",
+        full_name: data.full_name 
+      })
+      .eq("id", user.user.id)
+    
+    // Si no existe el perfil (falló el trigger), lo creamos
+    if (profileError) {
+       const { error: insertError } = await supabaseAdmin
+        .from("profiles")
+        .upsert({
+          id: user.user.id,
+          email: data.email,
+          full_name: data.full_name,
+          role: data.role || "student"
+        })
+        
+       if (insertError) {
+         console.error("Error creating/updating profile:", insertError)
+       }
+    }
+  }
+
+  revalidatePath("/admin/users")
+  return user.user
+}
+
 export async function updateUser(userId: string, data: { full_name?: string; role?: string }) {
   const supabase = await createClient()
 
