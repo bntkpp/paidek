@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { User, Mail, Calendar, ShieldCheck } from "lucide-react"
+import { User, Mail, Calendar, ShieldCheck, Lock } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 export default function ProfilePage() {
@@ -19,6 +19,13 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  
+  // Password change state
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false)
+  const [passwordMessage, setPasswordMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+
   const router = useRouter()
 
   useEffect(() => {
@@ -63,6 +70,33 @@ export default function ProfilePage() {
     }
 
     setIsSaving(false)
+  }
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (newPassword !== confirmPassword) {
+      setPasswordMessage({ type: "error", text: "Las contraseñas no coinciden" })
+      return
+    }
+    if (newPassword.length < 6) {
+      setPasswordMessage({ type: "error", text: "La contraseña debe tener al menos 6 caracteres" })
+      return
+    }
+
+    setIsUpdatingPassword(true)
+    setPasswordMessage(null)
+
+    const supabase = createClient()
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+
+    if (error) {
+      setPasswordMessage({ type: "error", text: "Error al actualizar la contraseña: " + error.message })
+    } else {
+      setPasswordMessage({ type: "success", text: "Contraseña actualizada correctamente" })
+      setNewPassword("")
+      setConfirmPassword("")
+    }
+    setIsUpdatingPassword(false)
   }
 
   if (isLoading) {
@@ -189,6 +223,59 @@ export default function ProfilePage() {
                   Cancelar
                 </Button>
               </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Seguridad</CardTitle>
+            <CardDescription>
+              Gestiona tu contraseña y seguridad de la cuenta
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleUpdatePassword} className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="newPassword">Nueva Contraseña</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      id="newPassword" 
+                      type="password" 
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="pl-8 max-w-md"
+                      placeholder="Ingrese nueva contraseña"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                      id="confirmPassword" 
+                      type="password" 
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="pl-8 max-w-md"
+                      placeholder="Confirme nueva contraseña"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {passwordMessage && (
+                <Alert variant={passwordMessage.type === "success" ? "default" : "destructive"}>
+                  <AlertDescription>{passwordMessage.text}</AlertDescription>
+                </Alert>
+              )}
+
+              <Button type="submit" disabled={isUpdatingPassword}>
+                {isUpdatingPassword ? "Actualizando..." : "Actualizar Contraseña"}
+              </Button>
             </form>
           </CardContent>
         </Card>
