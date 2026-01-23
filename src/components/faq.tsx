@@ -28,7 +28,7 @@ const faqs = [
   {
     question: "¿Qué métodos de pago aceptan?",
     answer:
-      "Aceptamos todos los métodos de pago a través de Mercado Pago: tarjetas de crédito, débito y transferencias.",
+      "Aceptamos todos los métodos de pago a través de Webpay: tarjetas de crédito, débito y transferencias.",
   },
 ]
 
