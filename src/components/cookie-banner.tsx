@@ -33,12 +33,12 @@ export function CookieBanner() {
 
   return (
     <div className={cn(
-      "fixed bottom-0 left-0 right-0 z-50 p-4 md:p-6 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-t shadow-lg transition-transform duration-500 ease-in-out transform translate-y-0",
+      "fixed bottom-0 left-0 right-0 z-50 p-4 md:p-6 bg-white dark:bg-zinc-950 border-t shadow-2xl transition-transform duration-500 ease-in-out transform translate-y-0",
       !isVisible && "translate-y-full"
     )}>
       <div className="container max-w-screen-xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex-1 mr-4">
-          <h3 className="text-lg font-semibold mb-1">🍪 Valoramos tu privacidad</h3>
+          <h3 className="text-lg font-bold mb-1">Valoramos tu privacidad</h3>
           <p className="text-sm text-muted-foreground">
             Utilizamos cookies propias y de terceros para mejorar tu experiencia, analizar el tráfico y mostrarte contenido personalizado. 
             Al continuar navegando, aceptas nuestra <a href="/privacy" className="underline hover:text-primary">Política de Privacidad</a>.
