@@ -20,11 +20,11 @@ export function ContactSection() {
 
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-5xl mx-auto">
-            <div className="bg-white/80 backdrop-blur-xl border border-gray-100/50 rounded-[2.5rem] p-8 md:p-12 overflow-hidden relative shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+            <div className="bg-white/80 backdrop-blur-xl border border-gray-100/50 rounded-3xl md:rounded-[2.5rem] p-6 md:p-12 overflow-hidden relative shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
                 {/* Inner shine */}
                 <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
 
-                <div className="grid md:grid-cols-2 gap-12 items-center">
+                <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
                     <div className="text-left space-y-6">
                         <motion.div
                             initial={{ opacity: 0, x: -20 }}
@@ -73,11 +73,11 @@ export function ContactSection() {
                         <div className="absolute inset-0 bg-blue-500/10 blur-3xl -z-10 rounded-full transform scale-75" />
 
                         <div className="bg-white border border-gray-100 rounded-2xl p-6 md:p-8 hover:border-blue-500/20 transition-all duration-300 group shadow-[0_8px_30px_rgb(0,0,0,0.06)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)]">
-                            <div className="flex items-start gap-5">
-                                <div className="p-4 bg-gray-50 rounded-xl text-gray-900 shadow-sm group-hover:bg-blue-50 transition-colors duration-300 flex-shrink-0">
+                            <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-5">
+                                <div className="p-3 sm:p-4 bg-gray-50 rounded-xl text-gray-900 shadow-sm group-hover:bg-blue-50 transition-colors duration-300 flex-shrink-0">
                                     <Mail className="w-6 h-6 text-blue-600" />
                                 </div>
-                                <div className="space-y-3 flex-1">
+                                <div className="space-y-3 flex-1 w-full">
                                     <h3 className="font-bold text-gray-900 text-xl">Escríbenos un correo</h3>
                                     <p className="text-gray-500 text-sm leading-relaxed">
                                         Para consultas generales, problemas de acceso o información sobre inscripciones.
@@ -86,10 +86,10 @@ export function ContactSection() {
                                     <div className="pt-4">
                                         <a 
                                             href="mailto:colegiopaideiaonline@gmail.com" 
-                                            className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-gray-900 text-white font-medium text-sm rounded-lg hover:bg-gray-800 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 gap-2 shadow-md shadow-gray-900/5"
+                                            className="inline-flex items-center justify-center w-full py-2.5 px-4 bg-gray-900 text-white font-medium text-xs sm:text-sm rounded-lg hover:bg-gray-800 hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 gap-2 shadow-md shadow-gray-900/5 whitespace-nowrap overflow-hidden"
                                         >
-                                            <Mail className="w-4 h-4" />
-                                            <span>colegiopaideiaonline@gmail.com</span>
+                                            <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />
+                                            <span className="truncate">colegiopaideiaonline@gmail.com</span>
                                         </a>
                                     </div>
                                 </div>

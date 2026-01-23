@@ -199,23 +199,23 @@ export function AdminUsersManager({ initialUsers }: AdminUsersManagerProps) {
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6">
-          <div className="space-y-1">
-            <CardTitle>Todos los Usuarios</CardTitle>
+        <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4 space-y-0 pb-6">
+          <div className="space-y-1 w-full md:w-auto text-left">
+            <CardTitle className="text-xl">Todos los Usuarios</CardTitle>
             <div className="text-sm text-muted-foreground pt-1">
               Administra todos los usuarios de la plataforma
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
             <Input
               placeholder="Buscar por nombre o email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-[250px]"
+              className="w-full md:w-[250px]"
             />
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-2">
+                <Button className="gap-2 w-full sm:w-auto justify-center">
                   <Plus className="h-4 w-4" />
                   Crear Usuario
                 </Button>
