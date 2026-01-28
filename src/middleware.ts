@@ -5,7 +5,7 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   
   // Permitir webhooks y APIs de pago sin autenticación
-  if (pathname.startsWith('/api/webhook') || pathname.startsWith('/api/create-preference')) {
+  if (pathname.startsWith('/api/webhook') || pathname.startsWith('/api/create-preference') || pathname.startsWith('/api/webpay')) {
     return NextResponse.next()
   }
 
