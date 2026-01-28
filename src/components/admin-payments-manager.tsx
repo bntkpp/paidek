@@ -172,7 +172,7 @@ export function AdminPaymentsManager({ initialPayments }: AdminPaymentsManagerPr
                 <TableHead>Monto</TableHead>
                 <TableHead>Método</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>ID MercadoPago</TableHead>
+                <TableHead>ID Pago</TableHead>
                 <TableHead>Fecha</TableHead>
               </TableRow>
             </TableHeader>

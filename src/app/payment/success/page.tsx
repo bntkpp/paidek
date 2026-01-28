@@ -67,9 +67,9 @@ export default function PaymentSuccessPage() {
           user_id: user.id,
           course_id: courseId,
           amount: course.price,
-          currency: "ARS",
+          currency: "CLP",
           status: "completed",
-          payment_method: "mercadopago",
+          payment_method: "webpay",
         })
 
         // Track Purchase Event server-side

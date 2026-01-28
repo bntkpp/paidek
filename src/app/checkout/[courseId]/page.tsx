@@ -283,8 +283,8 @@ export default function CheckoutPage() {
         }
       })
 
-      // Create payment preference
-      const response = await fetch("/api/create-preference", {
+      // Create Webpay transaction
+      const response = await fetch("/api/webpay/init", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -315,10 +315,22 @@ export default function CheckoutPage() {
         })
       }
 
-      if (data.initPoint) {
-        // Redirect to Mercado Pago
-        window.location.href = data.initPoint
+      if (data.url && data.token) {
+        // Redirect to Transbank Webpay
+        const form = document.createElement("form");
+        form.action = data.url;
+        form.method = "POST";
+        form.style.display = "none";
+        
+        const tokenInput = document.createElement("input");
+        tokenInput.name = "token_ws";
+        tokenInput.value = data.token;
+        form.appendChild(tokenInput);
+
+        document.body.appendChild(form);
+        form.submit();
       } else {
+        console.error("Payment init failed:", data);
         alert("Error al procesar el pago. Por favor intenta nuevamente.")
         setIsProcessing(false)
       }
@@ -758,14 +770,39 @@ export default function CheckoutPage() {
                         ${totalPrice.toLocaleString("es-CL")}
                       </span>
                     </div>
-                    <Button className="w-full" size="lg" onClick={handlePayment} disabled={isProcessing}>
+                    <Button className="w-full bg-black hover:bg-zinc-800 text-white transition-colors" size="lg" onClick={handlePayment} disabled={isProcessing}>
                       <CreditCard className="h-5 w-5 mr-2" />
-                      {isProcessing ? "Procesando..." : "Pagar con Mercado Pago"}
+                      {isProcessing ? "Procesando..." : "Pagar con Webpay Plus"}
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground text-center">
-                    Pago seguro procesado por Mercado Pago
-                  </p>
+                  
+                  <div className="mt-4 pt-4 border-t border-border flex flex-col items-center gap-3 opacity-90">
+                    <div className="flex items-center justify-center pointer-events-none select-none" aria-label="Webpay Plus">
+                       <span className="text-2xl font-bold text-slate-800 dark:text-slate-200 tracking-tighter">web</span>
+                       <span className="text-2xl font-bold text-[#FF5D00] tracking-tighter">pay</span>
+                       <div className="ml-1 bg-[#D6001C] text-white text-sm font-bold px-1.5 py-0.5 rounded-sm transform -skew-x-12 flex items-center shadow-sm">
+                         plus
+                       </div>
+                    </div>
+                    
+                    <div className="flex flex-wrap justify-center gap-1.5 opacity-80 grayscale hover:grayscale-0 transition-all duration-300">
+                       <div className="h-5 px-1.5 bg-white border border-slate-200 rounded flex items-center justify-center" title="Visa">
+                          <span className="text-[10px] font-black italic text-blue-800">VISA</span>
+                       </div>
+                       <div className="h-5 px-1.5 bg-white border border-slate-200 rounded flex items-center justify-center" title="Mastercard">
+                          <div className="flex -space-x-1">
+                            <div className="w-2.5 h-2.5 rounded-full bg-red-600 opacity-80"></div>
+                            <div className="w-2.5 h-2.5 rounded-full bg-yellow-500 opacity-80"></div>
+                          </div>
+                       </div>
+                       <div className="h-5 px-1.5 bg-white border border-slate-200 rounded flex items-center justify-center" title="American Express">
+                          <span className="text-[8px] font-bold text-blue-600 tracking-tighter">AMEX</span>
+                       </div>
+                       <div className="h-5 px-1.5 bg-[#00175F] border border-[#00175F] rounded flex items-center justify-center" title="Redcompra">
+                          <span className="text-[8px] font-bold text-white italic">Redcompra</span>
+                       </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
