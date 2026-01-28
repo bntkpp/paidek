@@ -9,6 +9,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  serverExternalPackages: ["transbank-sdk"],
   webpack: (config) => {
     config.resolve.alias.canvas = false
     config.resolve.alias.encoding = false
