@@ -36,14 +36,25 @@ async function handleWebpayReturn(req: NextRequest) {
 
     console.log("Webpay return processing. Token:", token, "TBK_TOKEN:", tbkToken);
 
-    // 1. Abort scenario (Usuario anula la compra en formulario Webpay)
-    // En este caso TBK envía TBK_TOKEN, TBK_ORDEN_COMPRA, TBK_ID_SESION
-    if (tbkToken && !token) {
-        console.log("Webpay aborted by user (TBK_TOKEN present). Order:", tbkOrdenCompra);
+    // 1. Abort scenario / Error en formulario
+    // Si TBK_TOKEN está presente, se considera una transacción abortada o con error en el formulario
+    // (incluso si token_ws viene presente en algunos casos de error/reintento).
+    if (tbkToken) {
+        console.log("Webpay aborted/error (TBK_TOKEN present). Order:", tbkOrdenCompra);
         return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/payment/failure?reason=aborted`, 303);
     }
     
-    // 2. Timeout scenario (A veces TBK envía solo ID de sesión o similar sin token válido si expira)
+    // 2. Timeout scenario
+    // Cuando el usuario deja pasar más de 10 min en el formulario sin pagar.
+    // Transbank devuelve TBK_ID_SESION y TBK_ORDEN_COMPRA, pero NO token_ws ni TBK_TOKEN.
+    if (!token && !tbkToken && tbkOrdenCompra) {
+        console.log("Webpay timeout (no token, but order present). Order:", tbkOrdenCompra);
+        // Podríamos intentar registrar el rechazo por timeout aquí si quisiéramos, 
+        // pero al no haber token de transacción no podemos confirmar nada.
+        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/payment/failure?reason=timeout`, 303);
+    }
+
+    // 3. Invalid params (General case)
     if (!token) {
         console.error("No token_ws received in return");
         return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/payment/failure?reason=no_token`, 303);
