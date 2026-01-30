@@ -201,6 +201,44 @@ async function handleWebpayReturn(req: NextRequest) {
 
     } else {
         console.error("Webpay transaction failed/rejected:", commitResponse);
+        
+        // Attempt to record the rejected payment
+        try {
+            const buyOrder = commitResponse.buy_order;
+            const cookieStore = await cookies();
+            const cookieName = `tb_pending_${buyOrder}`;
+            const pendingDataStr = cookieStore.get(cookieName)?.value;
+            
+            if (pendingDataStr) {
+                 const pendingData = JSON.parse(pendingDataStr);
+                 const { courseId, userId } = pendingData;
+                 
+                 // Cleanup cookie
+                 cookieStore.delete(cookieName);
+                 
+                 const supabaseAdmin = createClient(
+                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+                    {
+                      auth: { autoRefreshToken: false, persistSession: false },
+                    }
+                  );
+                  
+                  await supabaseAdmin.from("payments").insert({
+                    user_id: userId,
+                    course_id: courseId,
+                    amount: commitResponse.amount,
+                    currency: "CLP",
+                    status: "rejected", 
+                    mercadopago_payment_id: token,
+                    payment_method: commitResponse.payment_type_code,
+                    payment_type: "webpay",
+                  });
+            }
+        } catch (e) {
+            console.error("Error saving rejected payment:", e);
+        }
+
         return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/payment/failure?reason=rejected`, 303);
     }
 

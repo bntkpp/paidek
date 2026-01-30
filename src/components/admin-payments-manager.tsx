@@ -85,6 +85,13 @@ export function AdminPaymentsManager({ initialPayments }: AdminPaymentsManagerPr
       amex: "American Express",
       debvisa: "Visa Débito",
       debmaster: "Mastercard Débito",
+      VD: "Venta Débito",
+      VN: "Venta Normal",
+      VC: "Venta en cuotas",
+      SI: "3 cuotas sin interés",
+      S2: "2 cuotas sin interés",
+      NC: "N cuotas sin interés",
+      VP: "Venta Prepago",
     }
     return methods[method] || method
   }
