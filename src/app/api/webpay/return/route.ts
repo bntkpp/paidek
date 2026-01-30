@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { WebpayPlus, Options, IntegrationApiKeys, Environment, IntegrationCommerceCodes } from 'transbank-sdk';
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { sendEmail } from "@/lib/emails/send";
+import { getPurchaseConfirmationTemplate, getWelcomeEmailTemplate } from "@/lib/emails/templates";
 
 export const dynamic = "force-dynamic";
 
@@ -203,6 +205,63 @@ async function handleWebpayReturn(req: NextRequest) {
                              });
                          }
                      }
+                  }
+                  
+                  // Enviar emails de confirmación
+                  try {
+                    const { data: userData } = await supabaseAdmin
+                      .from("profiles")
+                      .select("full_name, email")
+                      .eq("id", userId)
+                      .single();
+
+                    const { data: courseData } = await supabaseAdmin
+                      .from("courses")
+                      .select("title")
+                      .eq("id", courseId)
+                      .single();
+
+                    if (userData && courseData) {
+                      const userEmail = userData.email || "";
+                      const userName = userData.full_name || "";
+                      const courseTitle = courseData.title || "";
+                      const planLabel = months > 0 ? `Plan ${months} ${months === 1 ? 'mes' : 'meses'}` : 'De por vida';
+
+                      const purchaseHtml = getPurchaseConfirmationTemplate({
+                        userName,
+                        userEmail,
+                        courseTitle,
+                        courseId,
+                        amount: commitResponse.amount,
+                        plan: planLabel,
+                        includesQuestions: false,
+                        paymentId: token || "webpay",
+                        purchaseDate: new Date().toISOString(),
+                      });
+
+                      await sendEmail({
+                        to: userEmail,
+                        subject: `✅ Confirmación de compra - ${courseTitle}`,
+                        html: purchaseHtml,
+                      });
+
+                      if (!existingEnrollment) {
+                        const welcomeHtml = getWelcomeEmailTemplate({
+                          userName,
+                          userEmail,
+                          courseTitle,
+                          courseId,
+                        });
+
+                        await sendEmail({
+                          to: userEmail,
+                          subject: `🎉 Bienvenido a ${courseTitle}`,
+                          html: welcomeHtml,
+                        });
+                      }
+                    }
+                  } catch (emailError) {
+                    console.error("❌ Error enviando emails Webpay:", emailError);
                   }
               }
         }
