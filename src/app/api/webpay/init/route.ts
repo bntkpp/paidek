@@ -118,11 +118,22 @@ export async function POST(request: NextRequest) {
         maxAge: 3600 // 1 hour
     });
 
+    // Validar que estamos en producción y tenemos las credenciales correctas
+    const isProduction = process.env.TRANSBANK_ENV === 'PRODUCTION';
+    const commerceCode = process.env.TRANSBANK_COMMERCE_CODE;
+    const apiKey = process.env.TRANSBANK_API_KEY;
+
+    if (isProduction && (!commerceCode || !apiKey)) {
+        throw new Error('Missing Transbank production credentials');
+    }
+
     const txOptions = new Options(
-        process.env.TRANSBANK_COMMERCE_CODE || IntegrationCommerceCodes.WEBPAY_PLUS, 
-        process.env.TRANSBANK_API_KEY || IntegrationApiKeys.WEBPAY, 
-        process.env.TRANSBANK_ENV === 'PRODUCTION' ? Environment.Production : Environment.Integration
+        commerceCode || IntegrationCommerceCodes.WEBPAY_PLUS, 
+        apiKey || IntegrationApiKeys.WEBPAY, 
+        isProduction ? Environment.Production : Environment.Integration
     );
+
+    console.log('Transbank Environment:', isProduction ? 'PRODUCTION' : 'INTEGRATION');
 
     const tx = new WebpayPlus.Transaction(txOptions);
 

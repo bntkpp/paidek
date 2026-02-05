@@ -334,6 +334,16 @@ export async function POST(req: Request) {
             html: purchaseHtml,
           });
 
+          // Enviar copia al admin
+          const adminEmail = process.env.ADMIN_EMAIL;
+          if (adminEmail) {
+            await sendEmail({
+              to: adminEmail,
+              subject: `💰 Nueva compra: ${courseTitle} - ${userName}`,
+              html: purchaseHtml,
+            });
+          }
+
           // Email de bienvenida solo si es nueva inscripción
           if (isNewEnrollment) {
             const welcomeHtml = getWelcomeEmailTemplate({

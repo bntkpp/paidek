@@ -6,7 +6,7 @@ interface WelcomeEmailParams {
 }
 
 export function getWelcomeEmailTemplate({ userName, userEmail, courseTitle, courseId }: WelcomeEmailParams): string {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://institutopaidek.com"
   const courseUrl = `${baseUrl}/learn/${courseId}`
   
   return `
@@ -117,6 +117,18 @@ export function getWelcomeEmailTemplate({ userName, userEmail, courseTitle, cour
         <a href="${courseUrl}" class="button">Comenzar a Aprender 🚀</a>
       </center>
 
+      <div class="info-box" style="background-color: #eff6ff; border-left-color: #3b82f6; margin-top: 32px;">
+        <p style="margin: 0; font-size: 16px; font-weight: 600; color: #1e40af; margin-bottom: 12px;">🔐 Accede a tu cuenta</p>
+        <p style="margin: 0; color: #52525b; font-size: 14px; margin-bottom: 12px;">
+          Tu compra fue exitosa y ya tienes acceso completo. Sigue estos pasos:
+        </p>
+        <ol style="color: #52525b; font-size: 14px; margin: 0; padding-left: 20px; line-height: 1.8;">
+          <li><strong>Accede al Dashboard:</strong> Ingresa con tu correo <strong>${userEmail}</strong> en <a href="${baseUrl}/auth/login" style="color: #3b82f6; text-decoration: none;">institutopaidek.com/auth/login</a></li>
+          <li><strong>Crea tu contraseña:</strong> En tu primera sesión, haz clic en "¿Olvidaste tu contraseña?" para recibirla por correo. Luego podrás cambiarla en tu <a href="${baseUrl}/dashboard/profile" style="color: #3b82f6; text-decoration: none;">perfil</a></li>
+          <li><strong>Comienza a estudiar:</strong> Desde el Dashboard accede a todos tus cursos y contenido</li>
+        </ol>
+      </div>
+
       <p style="margin-top: 32px; font-size: 14px; color: #71717a;">
         <strong>Consejos para aprovechar al máximo tu curso:</strong>
       </p>
@@ -162,7 +174,7 @@ export function getPurchaseConfirmationTemplate({
   paymentId,
   purchaseDate,
 }: PurchaseConfirmationParams): string {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://institutopaidek.com"
   const courseUrl = `${baseUrl}/learn/${courseId}`
   const dashboardUrl = `${baseUrl}/dashboard`
   
@@ -355,7 +367,7 @@ interface SubscriptionExpiringParams {
 }
 
 export function getSubscriptionExpiringTemplate({ userName, courseTitle, courseId, daysLeft, expiresAt }: SubscriptionExpiringParams): string {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://institutopaidek.com"
   const renewUrl = `${baseUrl}/checkout/${courseId}`
   
   return `

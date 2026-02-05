@@ -63,10 +63,21 @@ async function handleWebpayReturn(req: NextRequest) {
     }
 
     // Configure Transbank options
+    const isProduction = process.env.TRANSBANK_ENV === 'PRODUCTION';
+    const commerceCode = process.env.TRANSBANK_COMMERCE_CODE;
+    const apiKey = process.env.TRANSBANK_API_KEY;
+
+    if (isProduction && (!commerceCode || !apiKey)) {
+        console.error('Missing Transbank production credentials');
+        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/payment/failure?reason=config_error`, 303);
+    }
+
+    console.log('Transbank Environment:', isProduction ? 'PRODUCTION' : 'INTEGRATION');
+
     const tx = new WebpayPlus.Transaction(new Options(
-        process.env.TRANSBANK_COMMERCE_CODE || IntegrationCommerceCodes.WEBPAY_PLUS, 
-        process.env.TRANSBANK_API_KEY || IntegrationApiKeys.WEBPAY, 
-        process.env.TRANSBANK_ENV === 'PRODUCTION' ? Environment.Production : Environment.Integration
+        commerceCode || IntegrationCommerceCodes.WEBPAY_PLUS, 
+        apiKey || IntegrationApiKeys.WEBPAY, 
+        isProduction ? Environment.Production : Environment.Integration
     ));
 
     // 3. Commit transaction
@@ -244,6 +255,16 @@ async function handleWebpayReturn(req: NextRequest) {
                         subject: `✅ Confirmación de compra - ${courseTitle}`,
                         html: purchaseHtml,
                       });
+
+                      // Enviar copia al admin
+                      const adminEmail = process.env.ADMIN_EMAIL;
+                      if (adminEmail) {
+                        await sendEmail({
+                          to: adminEmail,
+                          subject: `💰 Nueva compra: ${courseTitle} - ${userName}`,
+                          html: purchaseHtml,
+                        });
+                      }
 
                       if (!existingEnrollment) {
                         const welcomeHtml = getWelcomeEmailTemplate({
