@@ -7,5 +7,7 @@
 
   <!-- Espacio para portada o logo -->
   <img src="docs/images/cover.jpg" alt="Ecommerce Cover" width="800">
+  <img src="docs/images/checkout.jpg" alt="Checkout Cover" width="800">
+  <img src="docs/images/courses.jpg" alt="Courses Cover" width="800">
 </div>
 
