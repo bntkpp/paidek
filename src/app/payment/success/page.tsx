@@ -12,7 +12,7 @@ import { trackPurchase } from "../actions"
 export default function PaymentSuccessPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const courseId = searchParams.get("course_id")
+  const courseId = searchParams.get("course_id") || searchParams.get("courseId")
   const [isProcessing, setIsProcessing] = useState(true)
   const [user, setUser] = useState<any>(null)
 
@@ -54,11 +54,17 @@ export default function PaymentSuccessPage() {
         .single()
 
       if (!existingEnrollment) {
-        // Create enrollment
+        // Create enrollment (backup - the webhook/return handler should have already created this)
+        // Set a generous expiry as we don't know the plan details here
+        const defaultExpiry = new Date()
+        defaultExpiry.setFullYear(defaultExpiry.getFullYear() + 1) // 1 year default
+        
         await supabase.from("enrollments").insert({
           user_id: user.id,
           course_id: courseId,
           enrolled_at: new Date().toISOString(),
+          is_active: true,
+          expires_at: defaultExpiry.toISOString(),
           progress_percentage: 0,
         })
 

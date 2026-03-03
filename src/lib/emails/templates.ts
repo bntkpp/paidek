@@ -60,13 +60,14 @@ export function getWelcomeEmailTemplate({ userName, userEmail, courseTitle, cour
     .button {
       display: inline-block;
       padding: 14px 32px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
       color: white;
       text-decoration: none;
       border-radius: 6px;
-      font-weight: 600;
+      font-weight: 700;
       margin: 24px 0;
       transition: transform 0.2s;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
     }
     .button:hover {
       transform: translateY(-2px);

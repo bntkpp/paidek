@@ -22,10 +22,11 @@ export async function sendEmail({ to, subject, html }: EmailParams) {
 
   try {
     const data = await resend.emails.send({
-      from: 'Paidek <paidek@institutopaidek.com>',
+      from: 'Instituto Paidek <paidek@institutopaidek.com>',
       to,
       subject,
       html,
+      replyTo: 'colegiopaideiaonline@gmail.com',
     });
 
     return { success: true, data };
