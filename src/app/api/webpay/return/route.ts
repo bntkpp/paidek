@@ -75,8 +75,8 @@ async function handleWebpayReturn(req: NextRequest) {
     console.log('Transbank Environment:', isProduction ? 'PRODUCTION' : 'INTEGRATION');
 
     const tx = new WebpayPlus.Transaction(new Options(
-        commerceCode || IntegrationCommerceCodes.WEBPAY_PLUS, 
-        apiKey || IntegrationApiKeys.WEBPAY, 
+        isProduction ? commerceCode! : IntegrationCommerceCodes.WEBPAY_PLUS, 
+        isProduction ? apiKey! : IntegrationApiKeys.WEBPAY, 
         isProduction ? Environment.Production : Environment.Integration
     ));
 
@@ -89,25 +89,9 @@ async function handleWebpayReturn(req: NextRequest) {
     if (commitResponse.status === 'AUTHORIZED' && commitResponse.response_code === 0) {
         // Payment successful
         
-        // Extract metadata from Cookie using buyOrder from commit response
+        // Extract metadata: try DB first, then cookie fallback
+        // Cookies are unreliable on cross-site POST from Transbank
         const buyOrder = commitResponse.buy_order;
-        const cookieStore = await cookies();
-        const cookieName = `tb_pending_${buyOrder}`;
-        const pendingDataStr = cookieStore.get(cookieName)?.value;
-
-        if (!pendingDataStr) {
-             console.error(`Missing pending transaction data for buyOrder: ${buyOrder}`);
-             // If we can't find metadata, we can't fulfill. Critical error.
-             // We could redirect to failure or try to recover if we had DB persistence.
-             // For now, fail safely.
-             return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/payment/failure?reason=session_expired`, 303);
-        }
-
-        const pendingData = JSON.parse(pendingDataStr);
-        const { courseId, userId, planId, months, selectedAddons, addonsTotal } = pendingData;
-        
-        // Cleanup cookie
-        cookieStore.delete(cookieName);
 
         const supabaseAdmin = createClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -116,6 +100,49 @@ async function handleWebpayReturn(req: NextRequest) {
             auth: { autoRefreshToken: false, persistSession: false },
           }
         );
+
+        let pendingData: any = null;
+
+        // Primary: read from DB (pending_webpay_transactions table)
+        try {
+            const { data: dbPending } = await supabaseAdmin
+              .from("pending_webpay_transactions")
+              .select("transaction_data")
+              .eq("buy_order", buyOrder)
+              .single();
+
+            if (dbPending?.transaction_data) {
+                pendingData = dbPending.transaction_data;
+                console.log("✅ Transaction data recovered from DB");
+
+                // Cleanup DB record
+                await supabaseAdmin
+                  .from("pending_webpay_transactions")
+                  .delete()
+                  .eq("buy_order", buyOrder);
+            }
+        } catch (dbError) {
+            console.warn("⚠️ Could not read from pending_webpay_transactions:", dbError);
+        }
+
+        // Fallback: cookie
+        if (!pendingData) {
+            const cookieStore = await cookies();
+            const cookieName = `tb_pending_${buyOrder}`;
+            const pendingDataStr = cookieStore.get(cookieName)?.value;
+            if (pendingDataStr) {
+                pendingData = JSON.parse(pendingDataStr);
+                cookieStore.delete(cookieName);
+                console.log("✅ Transaction data recovered from cookie (DB fallback)");
+            }
+        }
+
+        if (!pendingData) {
+             console.error(`❌ Missing pending transaction data for buyOrder: ${buyOrder}. Neither DB nor cookie available.`);
+             return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/payment/failure?reason=session_expired`, 303);
+        }
+
+        const { courseId, userId, planId, months, selectedAddons, addonsTotal } = pendingData;
 
         // Check if payment already recorded (idempotency using token as payment_id)
         // Store Webpay Token in mercadopago_payment_id to avoid schema change
@@ -287,8 +314,8 @@ async function handleWebpayReturn(req: NextRequest) {
               }
         }
         
-        // Redirect to success
-        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/payment/success?courseId=${courseId}&planId=${planId}`, 303);
+        // Redirect to success (use course_id to match what the success page expects)
+        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_BASE_URL}/payment/success?course_id=${courseId}&planId=${planId}`, 303);
 
     } else {
         console.error("Webpay transaction failed/rejected:", commitResponse);
@@ -296,24 +323,44 @@ async function handleWebpayReturn(req: NextRequest) {
         // Attempt to record the rejected payment
         try {
             const buyOrder = commitResponse.buy_order;
-            const cookieStore = await cookies();
-            const cookieName = `tb_pending_${buyOrder}`;
-            const pendingDataStr = cookieStore.get(cookieName)?.value;
             
-            if (pendingDataStr) {
-                 const pendingData = JSON.parse(pendingDataStr);
-                 const { courseId, userId } = pendingData;
-                 
-                 // Cleanup cookie
-                 cookieStore.delete(cookieName);
-                 
-                 const supabaseAdmin = createClient(
-                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-                    {
-                      auth: { autoRefreshToken: false, persistSession: false },
-                    }
-                  );
+            // Try DB first, then cookie fallback
+            let rejectedData: any = null;
+            
+            const supabaseAdmin = createClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.SUPABASE_SERVICE_ROLE_KEY!,
+                { auth: { autoRefreshToken: false, persistSession: false } }
+            );
+
+            try {
+                const { data: dbPending } = await supabaseAdmin
+                  .from("pending_webpay_transactions")
+                  .select("transaction_data")
+                  .eq("buy_order", buyOrder)
+                  .single();
+
+                if (dbPending?.transaction_data) {
+                    rejectedData = dbPending.transaction_data;
+                    await supabaseAdmin
+                      .from("pending_webpay_transactions")
+                      .delete()
+                      .eq("buy_order", buyOrder);
+                }
+            } catch (e) { /* DB table might not exist */ }
+
+            if (!rejectedData) {
+                const cookieStore = await cookies();
+                const cookieName = `tb_pending_${buyOrder}`;
+                const pendingDataStr = cookieStore.get(cookieName)?.value;
+                if (pendingDataStr) {
+                     rejectedData = JSON.parse(pendingDataStr);
+                     cookieStore.delete(cookieName);
+                }
+            }
+            
+            if (rejectedData) {
+                 const { courseId, userId } = rejectedData;
                   
                   await supabaseAdmin.from("payments").insert({
                     user_id: userId,

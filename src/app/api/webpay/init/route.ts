@@ -94,28 +94,49 @@ export async function POST(request: NextRequest) {
     const sessionId = "S-" + Math.floor(Math.random() * 100000000).toString();
     const amount = Number(totalPrice || price); // Use total price including addons
 
-    const returnUrl = new URL(`${process.env.NEXT_PUBLIC_BASE_URL}/api/webpay/return`);
-    // Minimal data in URL to avoid length limits.
-    // We will rely on a secure cookie for the full payload,
-    // but keep buyOrder in URL to look up the correct cookie.
-    returnUrl.searchParams.append("buyOrder", buyOrder);
-
-    // Store transaction metadata in a cookie
+    // Store transaction metadata in Supabase (reliable, not affected by cookie policies)
+    // Cookies with sameSite='lax'/'none' are unreliable on cross-site POST from Transbank
     const transactionData = {
         courseId,
         userId,
         planId,
         months,
         selectedAddons,
-        addonsTotal
+        addonsTotal,
     };
 
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
+    // Store in pending_transactions table (or use payments table with pending status)
+    // We use a simple key-value approach via the existing payments table metadata
+    // Actually, store in a lightweight way: insert a pending payment record
+    const { error: pendingError } = await supabaseAdmin
+      .from("pending_webpay_transactions")
+      .upsert({
+        buy_order: buyOrder,
+        transaction_data: transactionData,
+        created_at: new Date().toISOString(),
+      });
+
+    if (pendingError) {
+      // If the table doesn't exist, fall back to cookie-only approach
+      console.warn("⚠️ Could not store in pending_webpay_transactions table, using cookie fallback:", pendingError.message);
+    }
+
+    const returnUrl = new URL(`${process.env.NEXT_PUBLIC_BASE_URL}/api/webpay/return`);
+    returnUrl.searchParams.append("buyOrder", buyOrder);
+
+    // Also store in cookie as secondary mechanism
     const cookieStore = await cookies();
     cookieStore.set(`tb_pending_${buyOrder}`, JSON.stringify(transactionData), {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 3600 // 1 hour
+        sameSite: 'none',
+        maxAge: 3600
     });
 
     // Validar que estamos en producción y tenemos las credenciales correctas
@@ -128,8 +149,8 @@ export async function POST(request: NextRequest) {
     }
 
     const txOptions = new Options(
-        commerceCode || IntegrationCommerceCodes.WEBPAY_PLUS, 
-        apiKey || IntegrationApiKeys.WEBPAY, 
+        isProduction ? commerceCode! : IntegrationCommerceCodes.WEBPAY_PLUS, 
+        isProduction ? apiKey! : IntegrationApiKeys.WEBPAY, 
         isProduction ? Environment.Production : Environment.Integration
     );
 
