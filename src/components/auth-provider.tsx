@@ -50,6 +50,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           router.push('/');
           router.refresh();
         }
+
+        // Si el token es inválido o no se puede renovar (por caché o vencimiento)
+        // Redirigir directamente al login para limpiar estado en el cliente
+        if (event === 'TOKEN_REFRESH_FAILED') {
+          setUser(null);
+          router.push('/auth/login');
+          router.refresh();
+        }
       }
     );
 
